@@ -30,6 +30,17 @@ const CAMERA_MODES: readonly { mode: CameraMode; key: MsgKey }[] = [
   { mode: 'trackside', key: 'camera.trackside' },
 ];
 
+/**
+ * Start-track switch (§7.1 `exerciseStarts`, §10.1): the two Aufgabenstellungen put the loco
+ * on different tracks of Bahnhof 1, so the seat is a plant setting the student can change
+ * directly instead of only as a side effect of opening a network. The panel never decides
+ * which one is active — it renders what `setStartExercise` reports back from the host.
+ */
+const START_EXERCISES: readonly { id: string; key: MsgKey; titleKey: MsgKey }[] = [
+  { id: 'gruppeA', key: 'controls.startGruppeA', titleKey: 'controls.startGruppeATitle' },
+  { id: 'gruppeB', key: 'controls.startGruppeB', titleKey: 'controls.startGruppeBTitle' },
+];
+
 export interface ControlPanelOptions {
   onRun: () => void;
   onStop: () => void;
@@ -38,6 +49,9 @@ export interface ControlPanelOptions {
   onTimeScaleChange: (scale: number) => void;
   onNotausChange: (active: boolean) => void;
   onCameraModeChange: (mode: CameraMode) => void;
+  /** Seat the loco on this exercise's start track (§7.1 `exerciseStarts`). Resets the plant,
+   *  so the shell treats it like the Reset button. */
+  onStartExerciseChange: (exerciseId: string) => void;
   onLabelsChange: (visible: boolean) => void;
   /** Force (true) or release (false) an input bit; returns whether it was applied (§10.3). */
   onForceInput: (address: BitAddress, value: boolean) => boolean;
@@ -69,6 +83,8 @@ export class ControlPanel {
   private readonly speedSelect: HTMLSelectElement;
   private readonly cameraLegend: HTMLElement;
   private readonly cameraButtons = new Map<CameraMode, HTMLButtonElement>();
+  private readonly startLegend: HTMLElement;
+  private readonly startButtons = new Map<string, HTMLButtonElement>();
   private readonly labelsToggle: HTMLInputElement;
   private readonly labelsText: HTMLElement;
   private readonly layoutLegend: HTMLElement;
@@ -134,6 +150,21 @@ export class ControlPanel {
       cameraGroup.appendChild(button);
     }
 
+    this.startLegend = el('span', { className: 'field-label', text: t('controls.startTrack') });
+    const startGroup = el('div', {
+      className: 'segmented',
+      attrs: { role: 'group', 'aria-label': t('controls.startTrack') },
+    });
+    for (const item of START_EXERCISES) {
+      const button = el('button', {
+        className: 'seg-btn',
+        attrs: { type: 'button' },
+        onClick: () => this.options.onStartExerciseChange(item.id),
+      });
+      this.startButtons.set(item.id, button);
+      startGroup.appendChild(button);
+    }
+
     this.labelsToggle = el('input', { attrs: { type: 'checkbox' } });
     this.labelsToggle.checked = options.labelsVisible ?? true;
     this.labelsToggle.addEventListener('change', () => {
@@ -175,6 +206,17 @@ export class ControlPanel {
         el('div', {
           className: 'control-group',
           children: [this.runButton, this.stopButton, this.resetButton],
+        }),
+        // Next to Reset on purpose: both put the plant back to a defined starting state.
+        el('div', {
+          className: 'control-group',
+          children: [
+            el('div', {
+              className: 'field',
+              title: t('controls.startTrackTitle'),
+              children: [this.startLegend, startGroup],
+            }),
+          ],
         }),
         el('div', { className: 'control-group', children: [scan.wrapper, speed.wrapper] }),
         el('div', {
@@ -226,12 +268,26 @@ export class ControlPanel {
     this.selectCamera(mode, false);
   }
 
+  /**
+   * Show which exercise the plant is currently seated for (§7.1 `exerciseStarts`). Driven by
+   * the host status, never by the click: opening a network in the ExercisePanel re-seats the
+   * loco too, and this switch has to follow that just as it follows its own buttons.
+   */
+  setStartExercise(exerciseId: string): void {
+    for (const [candidate, button] of this.startButtons) {
+      const active = candidate === exerciseId;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     for (const control of [this.runButton, this.stopButton, this.resetButton, this.notausButton]) {
       control.disabled = !enabled;
     }
     this.scanSelect.disabled = !enabled;
+    for (const button of this.startButtons.values()) button.disabled = !enabled;
     for (const button of this.inputButtons.values()) button.disabled = !enabled;
   }
 
@@ -266,6 +322,14 @@ export class ControlPanel {
     for (const item of CAMERA_MODES) {
       const button = this.cameraButtons.get(item.mode);
       if (button !== undefined) button.textContent = t(item.key);
+    }
+    this.startLegend.textContent = t('controls.startTrack');
+    for (const item of START_EXERCISES) {
+      const button = this.startButtons.get(item.id);
+      if (button !== undefined) {
+        button.textContent = t(item.key);
+        button.title = t(item.titleKey);
+      }
     }
     this.inputsLegend.textContent = t('inputs.title');
     this.inputsRow.setAttribute('aria-label', t('inputs.title'));

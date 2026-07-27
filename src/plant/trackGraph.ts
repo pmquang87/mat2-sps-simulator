@@ -60,7 +60,9 @@ export class TrackGraph {
   private readonly switchesById = new Map<string, SwitchSpec>();
   private readonly switchList: readonly SwitchSpec[];
   private readonly reedList: readonly ReedSpec[];
-  private readonly startSpec: TrainStartSpec;
+  /** Not readonly: `setStart` re-seats the train when the student switches exercise
+   *  (§7.1 `exerciseStarts`, D13). Every write goes through the constructor's validation. */
+  private startSpec: TrainStartSpec;
 
   constructor(plan: TrackplanFile) {
     this.meta = { ...plan.meta, speedsMmS: { ...plan.meta.speedsMmS } };
@@ -124,15 +126,28 @@ export class TrackGraph {
       }
     }
 
-    const startPoly = this.polylines.get(plan.start.edgeId);
-    if (!startPoly) fail(`start references unknown edge "${plan.start.edgeId}"`);
-    if (plan.start.offsetMm < 0 || plan.start.offsetMm > startPoly.lengthMm) {
-      fail(`start offset ${plan.start.offsetMm} mm outside edge "${plan.start.edgeId}"`);
-    }
-
     this.switchList = [...plan.switches];
     this.reedList = [...plan.reeds];
-    this.startSpec = { ...plan.start };
+    this.startSpec = this.validatedStart(plan.start);
+  }
+
+  /** Shared by the constructor and `setStart` — a re-seat is validated exactly like the
+   *  trackplan's own `start`, so a bad `exerciseStarts` entry fails the same way (§7.1). */
+  private validatedStart(spec: TrainStartSpec): TrainStartSpec {
+    const poly = this.polylines.get(spec.edgeId);
+    if (!poly) fail(`start references unknown edge "${spec.edgeId}"`);
+    if (spec.offsetMm < 0 || spec.offsetMm > poly.lengthMm) {
+      fail(`start offset ${spec.offsetMm} mm outside edge "${spec.edgeId}" (0..${poly.lengthMm} mm)`);
+    }
+    return { ...spec };
+  }
+
+  /**
+   * Move the seat a fresh `Train` takes (§7.1 `exerciseStarts`, D13). Validates first, so a
+   * rejected spec leaves the previous start in place; the caller decides when to re-init.
+   */
+  setStart(spec: TrainStartSpec): void {
+    this.startSpec = this.validatedStart(spec);
   }
 
   node(id: string): TrackNodeSpec {
