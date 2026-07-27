@@ -68,6 +68,21 @@ const plan = trackplanJson as unknown as TrackplanFile;
  */
 const MAX_BURIED_PT = 70;
 
+/**
+ * The shipped trackplan declares NO tunnel (owner decision, `docs/REVIEW_SCENE.md` D11): the
+ * portal sat where `e68` passes within 45 mm of the open `e49`, so that neighbour's rock cutting
+ * carved to within 7 mm of the bore and left knife-thin blades of rock beside the mouth. The
+ * geometry had no room for both — the only reed on `e68` (`xR05BH3G2`, offset 371 mm) has to stay
+ * in daylight, which caps how far the hill can move — so the owner chose to drop the tunnel and
+ * the hill above it and leave the track in the open.
+ *
+ * The portal machinery is NOT deleted: `straightPlan` in `./fixture` still declares a tunnel and
+ * exercises mouths, bores and apertures end to end. The blocks below that need a portal on the
+ * REAL plan are therefore gated on this flag rather than removed, so re-declaring a tunnel in
+ * `landscape.tunnels` brings their coverage straight back.
+ */
+const PLAN_HAS_TUNNEL = tunnelEdgeIds(plan).size > 0;
+
 function ctx(tp: TrackplanFile) {
   const frame = PlanFrame.fromTrackplan(tp);
   const curves = buildEdgeCurves(tp, frame);
@@ -240,7 +255,23 @@ describe('terrain height field', () => {
 });
 
 describe('tunnel portals', () => {
-  it('places one portal per declared-tunnel entry into the massif', () => {
+
+  it('ships without a tunnel: no portal, no bore, and the track stays in daylight', () => {
+    // The contract after D11. Stated positively so the `skipIf` gates above can never pass
+    // vacuously: if a tunnel is ever declared again this fails and those blocks wake up.
+    expect(tunnelEdgeIds(plan).size).toBe(0);
+    const { frame, curves, terrain } = ctx(plan);
+    expect(findPortalSites(plan, curves, frame, terrain)).toHaveLength(0);
+    expect(tunnelBores(plan, curves, frame, terrain)).toHaveLength(0);
+    // e68 carried the bore; every metre of it must now be open sky
+    const e68 = curves.get('e68');
+    expect(e68, 'e68 missing from the plan').toBeDefined();
+    for (let s = 0; s <= e68!.lengthMm; s += 5) {
+      const p = poseAtOffsetMm(e68!, Math.min(s, e68!.lengthMm)).position;
+      expect(coverMm(terrain, frame, p), `e68@${s.toFixed(0)}mm buried`).toBeLessThanOrEqual(5.6);
+    }
+  });
+  it.skipIf(!PLAN_HAS_TUNNEL)('places one portal per declared-tunnel entry into the massif', () => {
     const { frame, curves, terrain } = ctx(plan);
     const sites = findPortalSites(plan, curves, frame, terrain);
     expect(sites.length).toBeGreaterThan(0);
@@ -327,7 +358,7 @@ describe('tunnel portals', () => {
     expect(tunnelBores(tp, curves, frame, terrain)).toHaveLength(0);
   });
 
-  it('keeps every bore short: the train is only briefly out of sight', () => {
+  it.skipIf(!PLAN_HAS_TUNNEL)('keeps every bore short: the train is only briefly out of sight', () => {
     const { frame, curves, terrain } = ctx(plan);
     const tunnels = tunnelEdgeIds(plan);
     expect(tunnels.size).toBeGreaterThan(0);
@@ -527,10 +558,12 @@ describe('scenery visibility from the overview cameras', () => {
     islandTop.y -= 0.0005;
     expect(raysOnto(scene, bird, islandTop, 'lakeIsland'), 'island from Bird').toBeGreaterThan(0);
 
+    // the tower and island assertions above are the D7 guard and always run; the portal rays
+    // below only apply while the plan declares a tunnel
     const curves = buildEdgeCurves(plan, frame);
     const terrain = buildTerrain(plan, frame);
     const sites = findPortalSites(plan, curves, frame, terrain);
-    expect(sites.length).toBeGreaterThan(0);
+    expect(sites.length === 0).toBe(!PLAN_HAS_TUNNEL);
     for (const site of sites) {
       // aim at the lintel, the part of a portal an overview camera can see
       const at = site.position.clone().setY((PORTAL_TOP_MM - 4) * MM);
@@ -554,7 +587,7 @@ describe('scenery visibility from the overview cameras', () => {
  * along the track from rail height, exactly the way the user does.
  */
 describe('tunnel mouth at track level', () => {
-  it('shows a clear majority of central rays hitting the dark bore', () => {
+  it.skipIf(!PLAN_HAS_TUNNEL)('shows a clear majority of central rays hitting the dark bore', () => {
     const { scene, frame } = fullScene();
     const curves = buildEdgeCurves(plan, frame);
     const { sites } = resolveTunnels(plan, curves, frame);
@@ -610,7 +643,7 @@ describe('tunnel mouth at track level', () => {
     }
   });
 
-  it('keeps the loading gauge clear of terrain along every bore', () => {
+  it.skipIf(!PLAN_HAS_TUNNEL)('keeps the loading gauge clear of terrain along every bore', () => {
     const { scene, frame } = fullScene();
     const curves = buildEdgeCurves(plan, frame);
     const { bores } = resolveTunnels(plan, curves, frame);

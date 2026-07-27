@@ -185,6 +185,9 @@ class FakePlant {
         targetSpeedMmS: this.speedMmS,
         worldPos: pose.pt,
         headingRad: pose.headingRad,
+        // the dev harness has no TrackGraph: a single sample is enough for it, and the scene
+        // falls back to its own straight-tail behaviour when the path carries fewer than two
+        consistPath: { startMm: 0, stepMm: 4, pts: [pose.pt] },
       },
       switches: this.switchStates,
       reeds: this.reedStates,

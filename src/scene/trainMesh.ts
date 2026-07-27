@@ -34,6 +34,8 @@ export interface TrainUpdate {
   /** true while the loco is inside a `tunnel: true` edge */
   readonly hidden: boolean;
   readonly derailed: boolean;
+  /** the track the consist occupies, from the plant graph (`docs/REVIEW_SCENE.md` D12) */
+  readonly path: ConsistWorldPath;
 }
 
 interface Vehicle {
@@ -43,38 +45,19 @@ interface Vehicle {
   readonly halfLengthMm: number;
 }
 
-/** Maximum snapshot-to-snapshot jump treated as motion; above it the path buffer resets. */
-const TELEPORT_MM = 200;
-
 /**
- * How much path history is kept behind the last vehicle, in mm.
- *
- * Sized for reversals, not for the consist (`docs/REVIEW_SCENE.md` D10). While the train
- * reverses, the coaches move to *decreasing* arc length — onto track the loco recorded
- * **before** the reversal began. No trimming policy can recover history it has already
- * dropped, and at 250 mm the Gruppe A Rangierfahrt (≈ 1.4 m of reverse) sampled past the end
- * of the buffer and drew the consist 1.09 m off its true position, 590 mm beyond the plate.
- *
- * 2600 mm covers every reversal the exercises perform with margin. Beyond it `pointAt` clamps,
- * so the consist bunches at the oldest retained point instead of flying off the board — wrong,
- * but bounded and on the plate. Cost: ≈ 3200 points at 80 mm/s, ≈ 128 kB.
+ * The track the consist stands on, in world space — `PlantSnapshot.train.consistPath` mapped
+ * through the `PlanFrame`. `pts[i]` is the centre line at arc length `startMm + i * stepMm`
+ * from the loco centre, positive in the train's **direction of travel**.
  */
-const TAIL_KEEP_MM = 2600;
+export interface ConsistWorldPath {
+  readonly startMm: number;
+  readonly stepMm: number;
+  readonly pts: readonly Vector3[];
+}
 
-/**
- * Length of the *synthetic* straight tail laid down when the buffer is first anchored, in mm —
- * just enough to carry the consist before any real history exists. Deliberately **not** tied to
- * `TAIL_KEEP_MM`: a 3 m straight guess behind the loco would leave the baseboard, and a reversal
- * would then render the train along it.
- */
-const INIT_TAIL_MM = 60;
-
-/**
- * How far `pointAt` may extrapolate past either end of the buffer, in mm. The leading vehicle
- * legitimately needs ~42 mm of lookahead past the recorded head; everything beyond that is a gap
- * in the history, and letting it grow is what drew the consist off the plate (D10).
- */
-const EXTRAPOLATE_LIMIT_MM = 60;
+/** How far along the path the frame-flip probe samples, mm. */
+const FLIP_PROBE_MM = 20;
 
 export class TrainVisual {
   readonly object: Group;
@@ -82,12 +65,19 @@ export class TrainVisual {
   private readonly vehicles: Vehicle[] = [];
   private readonly locoGroup: Group;
 
-  /** directed path buffer: world points and their arc length in mm */
-  private pathPts: Vector3[] = [];
-  private pathS: number[] = [];
-  private headS = 0;
-  private travelSign: 1 | -1 = 1;
-  private lastPos = new Vector3();
+  /**
+   * Which side of the path the coaches lie on: `-1` while the loco faces the direction of
+   * travel (the normal case), `+1` while it is pushing back.
+   *
+   * The path is anchored to the direction of TRAVEL, but a consist is coupled to the loco's
+   * FACING, and `Train.step` flips the travel sign on a stationary command reversal — so during
+   * a push-back `+s` rotates 180° while the coaches physically stay where they are. Tracking the
+   * side here, rather than deriving it from the travel sign, is what keeps them from being
+   * teleported through the loco (`docs/REVIEW_SCENE.md` D12).
+   */
+  private coachSign: 1 | -1 = -1;
+  private prevAhead: Vector3 | null = null;
+  private prevBehind: Vector3 | null = null;
   private initialised = false;
 
   private readonly cabPosition = new Vector3();
@@ -136,14 +126,17 @@ export class TrainVisual {
 
   update(u: TrainUpdate): void {
     this.object.visible = !u.hidden;
-    this.feedPath(u.position, u.headingRad);
+    this.trackFrameFlip(u);
 
+    // The train advances along +s between snapshots (speed is a magnitude, +s is travel).
     const alphaMm = Math.max(0, u.alphaMs) * (u.speedMmS / 1000);
-    const sampleS = this.headS + this.travelSign * alphaMm;
+    // sign pointing from the coaches toward the loco's nose, in path coordinates
+    const nose = -this.coachSign;
 
     for (const v of this.vehicles) {
-      const front = this.pointAt(sampleS - v.offsetMm + v.halfLengthMm * 0.75);
-      const rear = this.pointAt(sampleS - v.offsetMm - v.halfLengthMm * 0.75);
+      const centreS = alphaMm + this.coachSign * v.offsetMm;
+      const front = this.pointAt(u.path, centreS + nose * v.halfLengthMm * 0.75);
+      const rear = this.pointAt(u.path, centreS - nose * v.halfLengthMm * 0.75);
       const centre = front.clone().add(rear).multiplyScalar(0.5);
       const dir = front.clone().sub(rear);
       if (dir.lengthSq() < 1e-12) dir.copy(planHeadingToWorld(u.headingRad));
@@ -164,195 +157,72 @@ export class TrainVisual {
     }
   }
 
-  /** Clears the path buffer (called on plant reset / teleport). */
+  /** Forgets the consist orientation (called on plant reset / teleport). */
   reset(): void {
     this.initialised = false;
-    this.pathPts = [];
-    this.pathS = [];
-    this.headS = 0;
-    this.travelSign = 1;
+    this.coachSign = -1;
+    this.prevAhead = null;
+    this.prevBehind = null;
   }
 
   dispose(): void {
     this.reset();
   }
 
-  // ───────────────────────────── path buffer ─────────────────────────────
+  // ──────────────────────── consist orientation ────────────────────────
 
-  private feedPath(pos: Vector3, headingRad: number): void {
-    if (!this.initialised) {
-      this.initPath(pos, headingRad);
-      return;
+  /**
+   * Detects a 180° flip of the published path frame and swaps the side the coaches sit on.
+   *
+   * The test is geometric rather than a read of the plant's travel sign, so it needs no
+   * knowledge of plant internals and is falsifiable on its own: after a flip the new `+s`
+   * samples the track the old `-s` used to sample. §5.3 permits a reversal only through
+   * speed 0, so this is only ever consulted while the train is stationary — at speed the
+   * probe cannot fire, which is what keeps an ordinary node transition (where the travel
+   * sign also changes, but the frame does NOT rotate) from being mistaken for a flip.
+   */
+  private trackFrameFlip(u: TrainUpdate): void {
+    const ahead = this.pointAt(u.path, FLIP_PROBE_MM);
+    const behind = this.pointAt(u.path, -FLIP_PROBE_MM);
+    const prevAhead = this.prevAhead;
+    const prevBehind = this.prevBehind;
+    if (this.initialised && prevAhead && prevBehind) {
+      const kept = ahead.distanceTo(prevAhead);
+      const swapped = ahead.distanceTo(prevBehind);
+      // Margins are wide apart, so no speed gate is needed (and none would work: the plant
+      // flips the travel sign and accelerates within the SAME step, so the first snapshot
+      // after a flip already reports motion). Travelling normally the train advances a few mm
+      // per frame, so `kept` is small and `swapped` is ~2 × FLIP_PROBE_MM; on a flip the two
+      // swap roles. Requiring a clear factor keeps ordinary jitter from toggling the side.
+      if (swapped * 2 < kept) this.coachSign = (this.coachSign === 1 ? -1 : 1) as 1 | -1;
     }
-    const moved = pos.distanceTo(this.lastPos);
-    if (moved > TELEPORT_MM * MM) {
-      this.initPath(pos, headingRad);
-      return;
-    }
-    if (moved < 0.15 * MM) return;
-
-    const step = moved / MM; // mm
-    const tangent = this.tangentAt(this.headS);
-    const motion = pos.clone().sub(this.lastPos).setY(0).normalize();
-    if (motion.dot(tangent) >= 0) {
-      this.travelSign = 1;
-      const newS = this.headS + step;
-      const maxS = this.pathS[this.pathS.length - 1] ?? 0;
-      const onRecordedPath =
-        newS <= maxS && this.pointAt(newS).distanceTo(pos) < 8 * MM;
-      if (onRecordedPath) {
-        this.headS = newS;
-      } else {
-        this.truncateAfter(this.headS);
-        this.append(pos, newS);
-        this.headS = newS;
-      }
-    } else {
-      this.travelSign = -1;
-      const newS = this.headS - step;
-      // reversing past the start of the buffer: the plant's worldPos is an exact track point,
-      // so recording it keeps the head exact and `pathS` monotonic. (The coaches, which sit at
-      // still lower arc length, rely on the retained tail — see TAIL_KEEP_MM.)
-      if (newS < (this.pathS[0] ?? 0)) this.prepend(pos, newS);
-      this.headS = newS;
-    }
-    this.lastPos.copy(pos);
-    this.trimTail();
-  }
-
-  private initPath(pos: Vector3, headingRad: number): void {
-    this.initPathAt(pos, planHeadingToWorld(headingRad));
-  }
-
-  /** Anchors a fresh two-point buffer: a straight synthetic tail behind `pos` along `forward`. */
-  private initPathAt(pos: Vector3, forward: Vector3): void {
-    const back = forward.clone().setY(0);
-    if (back.lengthSq() < 1e-18) back.set(1, 0, 0);
-    back.normalize().multiplyScalar(-1);
-    const tailMm = this.lengthMm + INIT_TAIL_MM;
-    this.pathPts = [pos.clone().addScaledVector(back, tailMm * MM), pos.clone()];
-    this.pathS = [0, tailMm];
-    this.headS = tailMm;
-    this.travelSign = 1;
-    this.lastPos.copy(pos);
+    this.prevAhead = ahead;
+    this.prevBehind = behind;
     this.initialised = true;
   }
 
   /**
-   * Appends a point, re-anchoring instead of writing a non-monotonic arc length.
+   * World point at arc length `s` along the published path, linearly interpolated between
+   * samples and **clamped** to its ends.
    *
-   * The old code could reach `truncateAfter(headS)` with `headS` *below* `pathS[0]` (after a
-   * reversal ran off the end of the buffer), empty the buffer down to one point and then append
-   * below that point's arc length. The resulting non-monotonic `pathS` is what rendered the
-   * consist as a stretched streak instead of three vehicles (D10).
+   * Clamping is safe here in a way it never was for the old history buffer: the plant publishes
+   * `CONSIST_REACH_MM` in both directions, which exceeds the furthest sample any vehicle takes,
+   * so the clamp is unreachable in normal operation. Where it does bite — a consist standing
+   * against a buffer stop — the plant has already clamped its own walk to the same point, so the
+   * two agree.
    */
-  private append(pos: Vector3, s: number): void {
-    const last = this.pathS[this.pathS.length - 1];
-    if (last !== undefined && s <= last) {
-      this.initPathAt(pos, this.tangentAt(this.headS));
-      return;
-    }
-    this.pathPts.push(pos.clone());
-    this.pathS.push(s);
-  }
-
-  /** Prepends a point ahead of the buffer start, keeping `pathS` strictly increasing. */
-  private prepend(pos: Vector3, s: number): void {
-    const first = this.pathS[0];
-    if (first !== undefined && s >= first) return;
-    this.pathPts.unshift(pos.clone());
-    this.pathS.unshift(s);
-  }
-
-  /**
-   * Path buffer as read-only arrays — a test hook for the `pathS` monotonicity invariant
-   * (`tests/scene/consist.test.ts`), which is the property whose violation drew the streak.
-   */
-  pathSnapshot(): { readonly s: readonly number[]; readonly points: readonly Vector3[] } {
-    return { s: this.pathS, points: this.pathPts };
-  }
-
-  private truncateAfter(s: number): void {
-    while (this.pathS.length > 1) {
-      const last = this.pathS[this.pathS.length - 1];
-      if (last === undefined || last <= s) break;
-      this.pathS.pop();
-      this.pathPts.pop();
-    }
-  }
-
-  private trimTail(): void {
-    const keepFrom = this.headS - this.lengthMm - TAIL_KEEP_MM;
-    while (this.pathS.length > 2) {
-      const second = this.pathS[1];
-      if (second === undefined || second > keepFrom) break;
-      this.pathS.shift();
-      this.pathPts.shift();
-    }
-  }
-
-  /**
-   * World point at arc length `s` (mm) along the buffer, **clamped** to `[pathS[0], pathS[n-1]]`.
-   *
-   * A *little* extrapolation is legitimate and necessary: each vehicle is placed from two samples
-   * ±0.75 · halfLength around its centre, so the leading one reaches ~42 mm past the recorded
-   * head, where no path exists yet. What broke D10 was that the extrapolation was **unbounded** —
-   * once a reversal outran the retained history every vehicle sampled below `pathS[0]` and the
-   * straight-line error grew with the reversal distance, reaching 1,09 m at cycle 1454. Capping it
-   * at `EXTRAPOLATE_LIMIT_MM` keeps the normal case exact and turns the pathological case into a
-   * bounded few-cm error instead of a streak off the baseboard.
-   */
-  private pointAt(s: number): Vector3 {
-    const n = this.pathPts.length;
+  private pointAt(path: ConsistWorldPath, s: number): Vector3 {
+    const n = path.pts.length;
     if (n === 0) return new Vector3();
-    const first = this.pathPts[0];
-    const last = this.pathPts[n - 1];
-    const firstS = this.pathS[0] ?? 0;
-    const lastS = this.pathS[n - 1] ?? 0;
-    if (!first || !last) return new Vector3();
-    if (n === 1) return first.clone();
-    if (s <= firstS) {
-      const over = Math.min(firstS - s, EXTRAPOLATE_LIMIT_MM);
-      return first.clone().addScaledVector(this.tangentAt(firstS), -over * MM);
-    }
-    if (s >= lastS) {
-      const over = Math.min(s - lastS, EXTRAPOLATE_LIMIT_MM);
-      return last.clone().addScaledVector(this.tangentAt(lastS), over * MM);
-    }
-    for (let i = 1; i < n; i += 1) {
-      const sb = this.pathS[i];
-      const sa = this.pathS[i - 1];
-      const pb = this.pathPts[i];
-      const pa = this.pathPts[i - 1];
-      if (sb === undefined || sa === undefined || !pa || !pb) continue;
-      if (s <= sb) {
-        const span = sb - sa;
-        const t = span > 1e-9 ? (s - sa) / span : 0;
-        return pa.clone().lerp(pb, t);
-      }
-    }
-    return last.clone();
+    if (n === 1) return (path.pts[0] as Vector3).clone();
+    const raw = (s - path.startMm) / path.stepMm;
+    const idx = Math.min(n - 2, Math.max(0, Math.floor(raw)));
+    const t = Math.min(1, Math.max(0, raw - idx));
+    const a = path.pts[idx] as Vector3;
+    const b = path.pts[idx + 1] as Vector3;
+    return a.clone().lerp(b, t);
   }
 
-  /** Forward unit tangent of the buffer at arc length `s`. */
-  private tangentAt(s: number): Vector3 {
-    const n = this.pathPts.length;
-    if (n < 2) return new Vector3(1, 0, 0);
-    let idx = n - 1;
-    for (let i = 1; i < n; i += 1) {
-      const sb = this.pathS[i];
-      if (sb !== undefined && s <= sb) {
-        idx = i;
-        break;
-      }
-    }
-    const a = this.pathPts[idx - 1];
-    const b = this.pathPts[idx];
-    if (!a || !b) return new Vector3(1, 0, 0);
-    const t = b.clone().sub(a).setY(0);
-    if (t.lengthSq() < 1e-18) return new Vector3(1, 0, 0);
-    return t.normalize();
-  }
 }
 
 /** Builds the loco (local +x = forward, y = 0 at rail top). */

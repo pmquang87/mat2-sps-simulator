@@ -4465,8 +4465,7 @@
           "x": 281.5,
           "y": 301.7
         }
-      ],
-      "tunnel": true
+      ]
     },
     {
       "id": "e49",
@@ -5110,8 +5109,7 @@
           "x": 380.8,
           "y": 199.2
         }
-      ],
-      "tunnel": true
+      ]
     },
     {
       "id": "e69",
@@ -6988,13 +6986,7 @@
     }
   },
   "landscape": {
-    "tunnels": [
-      {
-        "edgeIds": [
-          "e68"
-        ]
-      }
-    ],
+    "tunnels": [],
     "lake": {
       "center": {
         "x": 160,
@@ -7046,21 +7038,13 @@
       {
         "kind": "aussichtsturm",
         "pt": {
-          "x": 300,
-          "y": 255
+          "x": 352,
+          "y": 296
         },
         "rotDeg": 0
       }
     ],
     "mountains": [
-      {
-        "center": {
-          "x": 300,
-          "y": 255
-        },
-        "radiusPt": 42,
-        "heightPt": 52
-      },
       {
         "center": {
           "x": 352,

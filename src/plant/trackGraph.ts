@@ -18,7 +18,20 @@ import type {
   TrackplanFile,
   TrackplanMeta,
   TrainStartSpec,
+  Vec2,
 } from './types';
+
+/**
+ * The track a consist occupies, sampled at a fixed arc-length spacing (`docs/REVIEW_SCENE.md`
+ * D12). `pts[i]` is the centre-line point at arc length `startMm + i * stepMm` measured from the
+ * train, positive in the train's direction of travel. Purely geometric: it carries no vehicle
+ * dimensions, so the renderer decides what sits where.
+ */
+export interface ConsistPath {
+  readonly startMm: number;
+  readonly stepMm: number;
+  readonly pts: readonly Vec2[];
+}
 
 /** Result of resolving the continuation past a node. */
 export type NextEdgeResult =
@@ -210,5 +223,97 @@ export class TrackGraph {
       trailedSwitchId: sw.id,
       trailedMismatch: positionOf(sw.id) !== branch,
     };
+  }
+
+  /**
+   * The track the CONSIST occupies, as plan-space samples of the centre line at a fixed arc-length
+   * spacing, from `behindMm` behind the train to `aheadMm` in front of it (`docs/REVIEW_SCENE.md`
+   * D12).
+   *
+   * Why this lives in the graph and not in the renderer: a coach's position is a *track* question,
+   * not a history question. The scene used to place coaches along a buffer of the loco's past
+   * positions, which is wrong in two ways that both showed up on the real plant — at spawn there is
+   * no history at all (the buffer laid down a straight guess and the coaches left the rails on the
+   * first curve), and during a push-back the coaches LEAD the loco onto whatever the switches are
+   * set to now, which the loco has never driven over. Walking the live graph answers both: a switch
+   * thrown behind the loco moves the coaches with it, exactly as on the real plant.
+   *
+   * Sampling walks outward from the train in both senses, resolving every node with the same
+   * `nextEdge` the train itself uses, so the consist can never occupy a route the train could not.
+   * A buffer end stops the walk and the remaining samples clamp to it — a consist standing against
+   * the stops, which is what the plant does too.
+   */
+  consistPath(
+    at: { edgeId: string; offsetMm: number; direction: 1 | -1 },
+    span: { aheadMm: number; behindMm: number; stepMm: number },
+    positionOf: (switchId: string) => SwitchPosition,
+  ): ConsistPath {
+    const step = span.stepMm;
+    const nBehind = Math.ceil(span.behindMm / step);
+    const nAhead = Math.ceil(span.aheadMm / step);
+    const back = this.walkSamples(at, -1, nBehind, step, positionOf);
+    const fwd = this.walkSamples(at, +1, nAhead, step, positionOf);
+    back.reverse();
+    return { startMm: -nBehind * step, stepMm: step, pts: [...back, ...fwd.slice(1)] };
+  }
+
+  /**
+   * `count + 1` samples (including the train itself) walking `sense` × the train's direction, at
+   * `stepMm` spacing. Clamps at a buffer instead of running off the graph.
+   */
+  private walkSamples(
+    at: { edgeId: string; offsetMm: number; direction: 1 | -1 },
+    sense: 1 | -1,
+    count: number,
+    stepMm: number,
+    positionOf: (switchId: string) => SwitchPosition,
+  ): Vec2[] {
+    let edgeId = at.edgeId;
+    let offsetMm = at.offsetMm;
+    let dir: 1 | -1 = (at.direction * sense) as 1 | -1;
+    const out: Vec2[] = [this.polyline(edgeId).pointAtMm(offsetMm)];
+    for (let i = 0; i < count; i += 1) {
+      offsetMm += dir * stepMm;
+      // resolve node transitions exactly as Train.resolveTransitions does
+      let stuck = false;
+      for (let guard = 0; guard < 64; guard += 1) {
+        const len = this.edgeLengthMm(edgeId);
+        const edge = this.edge(edgeId);
+        let exitNodeId: string;
+        let overshootMm: number;
+        if (dir > 0 && offsetMm > len) {
+          exitNodeId = edge.to;
+          overshootMm = offsetMm - len;
+        } else if (dir < 0 && offsetMm < 0) {
+          exitNodeId = edge.from;
+          overshootMm = -offsetMm;
+        } else {
+          break;
+        }
+        const res = this.nextEdge(edgeId, exitNodeId, positionOf);
+        if (res.kind === 'buffer') {
+          offsetMm = dir > 0 ? len : 0;
+          stuck = true;
+          break;
+        }
+        const next = this.edge(res.edgeId);
+        edgeId = res.edgeId;
+        if (next.from === exitNodeId) {
+          offsetMm = overshootMm;
+          dir = 1;
+        } else {
+          offsetMm = this.edgeLengthMm(res.edgeId) - overshootMm;
+          dir = -1;
+        }
+      }
+      out.push(this.polyline(edgeId).pointAtMm(offsetMm));
+      if (stuck) {
+        // against the stops: every remaining sample sits at the buffer
+        const last = out[out.length - 1] as Vec2;
+        for (let k = i + 1; k < count; k += 1) out.push(last);
+        break;
+      }
+    }
+    return out;
   }
 }

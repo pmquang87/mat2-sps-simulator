@@ -22,7 +22,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-import type { PlantSnapshot, TrackplanFile, Vec2 } from '../plant';
+import type { ConsistPath, PlantSnapshot, TrackplanFile, Vec2 } from '../plant';
 import {
   PALETTE,
   createMaterials,
@@ -40,7 +40,7 @@ import {
 } from './trackMesh';
 import { buildSwitchVisuals, type SwitchVisual } from './switchMesh';
 import { buildReedVisuals, type ReedVisual } from './reedMesh';
-import { TrainVisual, buildTrain } from './trainMesh';
+import { TrainVisual, buildTrain, type ConsistWorldPath } from './trainMesh';
 import {
   TRAIN_HIDE_COVER_MM,
   buildLandscape,
@@ -76,6 +76,8 @@ export class SceneManager {
     switch: null,
     reed: null,
   };
+  /** reused scratch for consistWorldPath — see there for why */
+  private readonly consistPts: Vector3[] = [];
   private lastSnapshotMs = Number.NEGATIVE_INFINITY;
   private disposed = false;
 
@@ -175,6 +177,7 @@ export class SceneManager {
       alphaMs: alpha,
       hidden: this.insideMassif(t.edgeId, trainPos),
       derailed: snapshot.derailed,
+      path: this.consistWorldPath(t.consistPath),
     });
 
     this.landscape.setNotaus(snapshot.notausActive);
@@ -268,6 +271,26 @@ export class SceneManager {
    * testing plan-bounds containment: the two ranges differ by the `mmPerUnit` factor, so
    * the test is unambiguous for any on-track position and stays deterministic.
    */
+  /**
+   * The plant's consist path mapped into world space (`docs/REVIEW_SCENE.md` D12). Points are
+   * written into a reused array — this runs on every rendered frame, and allocating ~350
+   * `Vector3` per frame is pure GC churn for a value the renderer consumes immediately.
+   */
+  private consistWorldPath(path: ConsistPath): ConsistWorldPath {
+    const pts = this.consistPts;
+    for (let i = pts.length; i < path.pts.length; i += 1) pts.push(new Vector3());
+    for (let i = 0; i < path.pts.length; i += 1) {
+      const p = path.pts[i] as Vec2;
+      const v = pts[i] as Vector3;
+      v.set(this.frame.x(p.x), 0, this.frame.z(p.y));
+    }
+    return {
+      startMm: path.startMm,
+      stepMm: path.stepMm,
+      pts: pts.length === path.pts.length ? pts : pts.slice(0, path.pts.length),
+    };
+  }
+
   private trainWorldPosition(worldPos: Vec2): Vector3 {
     const b = this.frame.bounds;
     const slack = 60;

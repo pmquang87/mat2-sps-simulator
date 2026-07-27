@@ -49,11 +49,17 @@ describe('trackplan.json schema & graph consistency', () => {
     expect(plan.start.direction).toBe(1);
   });
 
-  it('landscape references only existing edges and covers the B-NW5 tunnel', () => {
+  it('landscape references only existing edges', () => {
+    // `landscape.tunnels` is empty by owner decision (docs/REVIEW_SCENE.md D11): the portal sat
+    // where e68 runs 45 mm from the open e49, so that neighbour's rock cutting left knife-thin
+    // blades beside the mouth, and the reed on e68 capped how far the hill could move. The
+    // tunnel and its hill were removed rather than shipped looking broken. The schema still
+    // accepts tunnels — anything listed must name a real edge — and the scene machinery stays
+    // covered by `straightPlan` in tests/scene/fixture.ts.
     const edgeIds = new Set(plan.edges.map((e) => e.id));
     const tunnelEdges = plan.landscape.tunnels.flatMap((t) => t.edgeIds);
-    expect(tunnelEdges.length).toBeGreaterThan(0);
     for (const id of tunnelEdges) expect(edgeIds.has(id), id).toBe(true);
+    expect(plan.edges.some((e) => e.tunnel === true), 'no per-edge tunnel flag may survive, or tunnelEdgeIds() would fall back to it').toBe(false);
     expect(plan.landscape.lake).toBeDefined();
     expect(plan.landscape.mountains.length).toBeGreaterThan(0);
     expect(plan.landscape.buildings.some((b) => b.kind === 'lokschuppen')).toBe(true);
