@@ -19,13 +19,15 @@ function feed(
 ): void {
   const dir = Math.sign(to - from) || 1;
   for (let x = from; dir > 0 ? x <= to : x >= to; x += dir * stepMm) {
+    const pos = new Vector3(x * MM, 0, 0);
     const u: TrainUpdate = {
-      position: new Vector3(x * MM, 0, 0),
+      position: pos,
       headingRad,
       speedMmS: 200,
       alphaMs: 0,
       hidden: false,
       derailed: false,
+      path: straightPathAt(pos),
     };
     train.update(u);
   }
@@ -35,6 +37,14 @@ const OFFSETS = {
   coach1: DIM.locoLength / 2 + DIM.coupling + DIM.coachLength / 2,
   coach2: DIM.locoLength / 2 + DIM.coupling + DIM.coachLength / 2 + DIM.coachLength + DIM.coupling,
 };
+
+
+/** A straight world path through `p` along +x — enough for the placement tests here. */
+function straightPathAt(p: Vector3): { startMm: number; stepMm: number; pts: Vector3[] } {
+  const pts: Vector3[] = [];
+  for (let s = -700; s <= 700; s += 4) pts.push(new Vector3(p.x + s * MM, p.y, p.z));
+  return { startMm: -700, stepMm: 4, pts };
+}
 
 describe('TrainVisual', () => {
   it('places loco and coaches at their designed spacing behind the loco', () => {
@@ -78,6 +88,7 @@ describe('TrainVisual', () => {
       alphaMs: 50,
       hidden: false,
       derailed: false,
+      path: straightPathAt(new Vector3(500 * MM, 0, 0)),
     });
     expect((loco.position.x - before) / MM).toBeCloseTo(10, 3);
   });
@@ -93,6 +104,7 @@ describe('TrainVisual', () => {
       alphaMs: 0,
       hidden: true,
       derailed: false,
+      path: straightPathAt(new Vector3(0.2, 0, 0)),
     });
     expect(train.object.visible).toBe(false);
   });
@@ -101,12 +113,15 @@ describe('TrainVisual', () => {
     const train = buildTrain(createMaterials('low'), 'low');
     feed(train, 0, 600, 10, 0);
     train.update({
-      position: new Vector3(-2.5, 0, 1.5), // far jump ⇒ path buffer re-initialises
+      // a teleport (plant reset): the published path jumps with the train, and the consist
+      // must land on it rather than on anything remembered from before the jump
+      position: new Vector3(-2.5, 0, 1.5),
       headingRad: Math.PI / 2,
       speedMmS: 0,
       alphaMs: 0,
       hidden: false,
       derailed: false,
+      path: straightPathAt(new Vector3(-2.5, 0, 1.5)),
     });
     for (const v of train.object.children) {
       expect(Number.isFinite(v.position.x)).toBe(true);
@@ -130,6 +145,7 @@ describe('TrainVisual', () => {
       alphaMs: 0,
       hidden: false,
       derailed: true,
+      path: straightPathAt(new Vector3(0.4, 0, 0)),
     });
     expect(loco.rotation.z).toBeGreaterThan(0);
     expect(train.getCabPosition().x).toBeGreaterThan(loco.position.x);

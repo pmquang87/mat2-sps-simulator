@@ -66,7 +66,7 @@ export {
   type SwitchVisual,
 } from './switchMesh';
 export { buildReedVisuals, type ReedVisual } from './reedMesh';
-export { TrainVisual, buildTrain, type TrainUpdate } from './trainMesh';
+export { TrainVisual, buildTrain, type TrainUpdate, type ConsistWorldPath } from './trainMesh';
 export {
   BOARD_MARGIN_PT,
   APERTURE_H_MM,

@@ -19,6 +19,7 @@ import { mulberry32 } from './random';
 import { Switch, SWITCH_OCCUPANCY_MM } from './switches';
 import type { SwitchPosition, SwitchState } from './switches';
 import { TrackGraph } from './trackGraph';
+import type { ConsistPath } from './trackGraph';
 import { Train } from './train';
 import type { TrainState } from './train';
 import type { TrackplanFile, Vec2 } from './types';
@@ -30,9 +31,25 @@ export interface PlantConfig {
   strictDerail?: boolean;            // default false: trailing a switch = warning, not derail
 }
 
+/**
+ * How much track around the train the snapshot publishes for the renderer, mm
+ * (`docs/REVIEW_SCENE.md` D12). Covers the longest consist the scene draws (422 mm) plus the
+ * ±0.75 · half-length sampling and a margin.
+ *
+ * **Symmetric on purpose.** The plant models the train as a point and so has no notion of which
+ * way the loco faces; the coaches sit behind its FACING, which is opposite to the direction of
+ * travel during a push-back. An asymmetric span (the first cut of this was 700 behind / 80
+ * ahead) therefore truncates exactly when the train reverses — both coaches clamp to the same
+ * end point and the consist collapses. Publishing the same reach both ways costs ~350 polyline
+ * lookups per snapshot and removes the failure mode entirely.
+ */
+export const CONSIST_REACH_MM = 700;
+/** Sampling spacing, mm. 4 mm keeps the chord error under 0,02 mm on the tightest curve (90,9 mm). */
+export const CONSIST_STEP_MM = 4;
+
 export interface PlantSnapshot {
   timeMs: number;
-  train: TrainState & { worldPos: Vec2; headingRad: number };
+  train: TrainState & { worldPos: Vec2; headingRad: number; consistPath: ConsistPath };
   switches: SwitchState[];           // stable order = trackplan order
   reeds: ReedState[];
   fahrstrom: FahrstromState;
@@ -178,9 +195,16 @@ export class Plant {
     // atan2 is rendering-only data (§6.3) — it never feeds back into plant state.
     // `+ 0` normalizes IEEE −0 (atan2(−0, −1) would flip π to −π).
     const headingRad = Math.atan2(tan.y * ts.direction + 0, tan.x * ts.direction + 0);
+    // The track the consist stands on, walked live through the current switch positions — see
+    // TrackGraph.consistPath. Rendering-only data (§6.3): it never feeds back into plant state.
+    const consistPath = this.graph.consistPath(
+      { edgeId: ts.edgeId, offsetMm: ts.offsetMm, direction: ts.direction },
+      { aheadMm: CONSIST_REACH_MM, behindMm: CONSIST_REACH_MM, stepMm: CONSIST_STEP_MM },
+      (id) => this.mustSwitch(id).position,
+    );
     return {
       timeMs: this.timeMs,
-      train: { ...ts, worldPos, headingRad },
+      train: { ...ts, worldPos, headingRad, consistPath },
       switches: this.switchUnits.map((s) => s.snapshot()),
       reeds: this.reedUnits.map((r) => ({ id: r.id, closed: r.closed, latched: r.latched })),
       fahrstrom: { ...this.fahrstrom },
