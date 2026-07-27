@@ -46,6 +46,9 @@ export interface SimStatus {
   scanIntervalMs: number;
   notausActive: boolean;
   derailed: boolean;
+  /** Exercise the plant is seated for (§7.1 `exerciseStarts`): the start-track switch renders
+   *  this, so it also follows a re-seat triggered by opening a network. */
+  startExercise: string;
   programLoaded: boolean;
   instructionCount: number;
   runtimeDiagnostics: readonly Diagnostic[];
@@ -78,6 +81,10 @@ export interface SimHost {
   loadProgram(source: string): ProgramLoadOutcome;
   setRunning(running: boolean): void;
   reset(): void;
+  /** Seat the live plant for the selected exercise (§7.1 `exerciseStarts`, D13): Gruppe A
+   *  starts on Bahnhof 1 Gleis 1, Gruppe B on Gleis 4. Returns whether the loco moved —
+   *  the shell mirrors the effect instead of assuming the call did something. */
+  setExercise(exerciseId: string): boolean;
   setScanInterval(ms: number): void;
   setTimeScale(scale: number): void;
   setNotaus(active: boolean): void;
@@ -199,6 +206,11 @@ export class App {
       onTimeScaleChange: (scale) => this.host.setTimeScale(scale),
       onNotausChange: (active) => this.host.setNotaus(active),
       onCameraModeChange: (mode) => this.host.setCameraMode(mode),
+      onStartExerciseChange: (exerciseId) => {
+        // Same effect as opening a network of that group: re-seat, then bring the shell back
+        // in step. `setExercise` reports whether the loco actually moved.
+        if (this.host.setExercise(exerciseId)) this.resetSimulation();
+      },
       onLabelsChange: (visible) => this.host.setLabelsVisible(visible),
       onForceInput: (address, value) => this.host.forceInputBit(address, value),
       onResetLayout: () => this.layout.reset(),
@@ -207,7 +219,15 @@ export class App {
     // ── tools column (Exercises / Hints / Examples, §10.1–§10.3) ─────────────
     this.exercisePanel = new ExercisePanel({
       onRunChecks: (networkId) => this.runChecks(networkId),
-      onSelectNetwork: (selection) => this.hintPanel.setNetwork(selection?.network ?? null),
+      onSelectNetwork: (selection) => {
+        this.hintPanel.setNetwork(selection?.network ?? null);
+        // Opening a network of the other Aufgabenstellung re-seats the loco (§7.1
+        // `exerciseStarts`, D13). A re-seat resets the plant, so the controls, the force
+        // mask and the watch list have to follow — same path as the Reset button.
+        if (selection !== null && this.host.available && this.host.setExercise(selection.exerciseId)) {
+          this.resetSimulation();
+        }
+      },
     });
     this.hintPanel = new HintPanel({
       onShowExample: (exampleId) => {
@@ -446,6 +466,7 @@ export class App {
     if (status !== null) {
       this.controls.setNotaus(status.notausActive);
       this.controls.setRunning(status.running);
+      this.controls.setStartExercise(status.startExercise);
       this.syncDiagnostics(status.runtimeDiagnostics);
     }
     this.watch.update(this.host.reader());

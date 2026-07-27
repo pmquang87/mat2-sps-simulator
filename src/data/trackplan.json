@@ -6982,7 +6982,7 @@
       "edgeId": "e43",
       "offsetMm": 100,
       "direction": 1,
-      "note": "Gruppe B task: the loco starts in Bahnhof 1 on Gleis 4 (B-NW10 returns 'auf das urspruengliche Gleis 4'); 100 mm puts it upstream of xR03BH1G4 (346.8 mm), the B-NW3 trigger. Consumers that only know §7.1 ignore this optional field; the check runner and the oracle scenario runner apply it per exercise."
+      "note": "Gruppe B task: the loco starts in Bahnhof 1 on Gleis 4 (B-NW10 returns 'auf das urspruengliche Gleis 4'); 100 mm puts it upstream of xR03BH1G4 (346.8 mm), the B-NW3 trigger. Consumers that only know §7.1 ignore this optional field; everything that seats a train resolves it through startForExercise (src/plant/exerciseStart.ts) — the live stack re-seats via Plant.setStart when the student opens a network, the check runner and the oracle scenario runner substitute start per exercise. D13: the live stack used to skip this and always started on Gleis 1."
     }
   },
   "landscape": {

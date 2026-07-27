@@ -30,7 +30,7 @@ import {
   exampleAsEditorSource,
 } from './pedagogy';
 import type { ExampleSpec, ExerciseSpec, KeyValueStore, NetworkSpec } from './pedagogy';
-import { Plant } from './plant';
+import { Plant, startForExercise, trackplanForExercise } from './plant';
 import type { TrackplanFile } from './plant';
 import { SceneManager } from './scene';
 import type { CameraMode } from './scene';
@@ -201,18 +201,13 @@ function browserKeyValueStore(): KeyValueStore {
 
 interface LoadedData<T> { value: T | null; reason: string; }
 
-/** Optional per-exercise start positions (trackplan.json `exerciseStarts`, deviation note
- *  in ARCHITECTURE.md §7.1): Gruppe A starts on BH1 Gleis 1, Gruppe B on Gleis 4. */
-interface StartSpec { edgeId: string; offsetMm: number; direction: 1 | -1; }
-
-function trackplanForExercise(plan: TrackplanFile, exerciseId: string): TrackplanFile {
-  const extras = plan as unknown as { exerciseStarts?: Record<string, StartSpec> };
-  const start = extras.exerciseStarts?.[exerciseId];
-  if (start === undefined) return plan;
-  const clone = JSON.parse(JSON.stringify(plan)) as TrackplanFile & { start: StartSpec };
-  clone.start = { edgeId: start.edgeId, offsetMm: start.offsetMm, direction: start.direction };
-  return clone;
-}
+/**
+ * Which exercise the untouched §7.1 `start` belongs to. Gruppe A has no `exerciseStarts`
+ * entry precisely because the default start IS its seat (Bahnhof 1 Gleis 1) — asserted in
+ * tests/plant/exerciseStart.test.ts — so before the first selection the start-track switch
+ * truthfully shows Gruppe A.
+ */
+const DEFAULT_START_EXERCISE_ID = 'gruppeA';
 
 function loadData<T>(name: string, parse: (json: unknown) => T): LoadedData<T> {
   const raw = dataFile(name);
@@ -248,6 +243,9 @@ function bootstrap(): void {
   let instructionCount = 0;
   /** Last source that parsed OK — check runs replay it in a fresh emulator (§10.1). */
   let lastGoodSource: string | null = null;
+  /** Exercise the live plant is currently seated for (§7.1 `exerciseStarts`, D13); null
+   *  until the student opens a network, i.e. the plant sits on the §7.1 default start. */
+  let seatedExerciseId: string | null = null;
 
   // ── pedagogy data + progress (§10.1–§10.3) ─────────────────────────────────
   const exercisesData = loadData<ExerciseSpec[]>('exercises.json', loadExercises);
@@ -417,6 +415,32 @@ function bootstrap(): void {
       stack.clock.timeScale = running ? timeScale : 0;
     },
 
+    /**
+     * Seat the LIVE plant for the exercise the student has open (§7.1 `exerciseStarts`).
+     * Gruppe A stands on Bahnhof 1 Gleis 1, Gruppe B on Gleis 4 — before D13 only the
+     * headless check runs honoured that, so the visible loco always waited on Gleis 1 and
+     * a Gruppe B program's first trigger ("xR03BH1G4") never came under the magnet.
+     *
+     * Returns whether the loco actually moved, so the shell resets its controls only when
+     * there was an effect — re-selecting a network of the same exercise leaves a running
+     * simulation alone.
+     */
+    setExercise(exerciseId: string): boolean {
+      if (stack === null || exerciseId === seatedExerciseId) return false;
+      const start = startForExercise(stack.trackplan, exerciseId);
+      let seated = false;
+      attempt(() => {
+        stack.plant.setStart(start);        // validates, then re-inits the plant
+        seated = true;
+      });
+      if (!seated) return false;            // rejected spec: loco stayed where it was
+      seatedExerciseId = exerciseId;
+      attempt(() => stack.coordinator.reset());
+      stack.clock.reset();
+      stack.clock.timeScale = running ? timeScale : 0;
+      return true;
+    },
+
     setScanInterval(ms: number): void {
       if (stack === null) return;
       attempt(() => stack.coordinator.setScanInterval(ms));
@@ -487,6 +511,7 @@ function bootstrap(): void {
         scanIntervalMs: safe(() => stack.coordinator.scanInterval, 50),
         notausActive: snapshot?.notausActive ?? false,
         derailed: snapshot?.derailed ?? false,
+        startExercise: seatedExerciseId ?? DEFAULT_START_EXERCISE_ID,
         programLoaded,
         instructionCount,
         runtimeDiagnostics: safe(() => [

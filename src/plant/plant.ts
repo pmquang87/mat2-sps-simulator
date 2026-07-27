@@ -22,7 +22,7 @@ import { TrackGraph } from './trackGraph';
 import type { ConsistPath } from './trackGraph';
 import { Train } from './train';
 import type { TrainState } from './train';
-import type { TrackplanFile, Vec2 } from './types';
+import type { TrackplanFile, TrainStartSpec, Vec2 } from './types';
 
 export interface PlantConfig {
   trackplan: TrackplanFile;
@@ -222,6 +222,19 @@ export class Plant {
 
   /** Train to start pos, switches to initial, PRNG reseed (§5.3). */
   reset(): void {
+    this.init();
+  }
+
+  /**
+   * Re-seat the loco and reset (§7.1 `exerciseStarts`): the two Aufgabenstellungen start on
+   * different tracks, so the live plant has to follow the exercise the student has open —
+   * D13, where it stayed on the §7.1 default and Gruppe B always began on Gleis 1.
+   *
+   * Resolve the spec with `startForExercise`. Validation runs before anything moves, so a
+   * bad spec throws and leaves the loco where it was.
+   */
+  setStart(spec: TrainStartSpec): void {
+    this.graph.setStart(spec);
     this.init();
   }
 

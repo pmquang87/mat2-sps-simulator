@@ -84,6 +84,12 @@ export interface TrackplanFile {
   reeds: ReedSpec[];
   start: TrainStartSpec;
   landscape: LandscapeSpec;
+  /** Optional (§7.1 deviation note): per-exercise start positions. §7.1 has a single
+   *  `start`, but the two Aufgabenstellungen place the loco differently (A: Bahnhof 1
+   *  Gleis 1 = the default `start`; B: Bahnhof 1 Gleis 4). Resolve it through
+   *  `startForExercise` — every consumer that seats the train must use the same rule
+   *  (D13: the live stack ignored the field and always seated Gruppe B on Gleis 1). */
+  exerciseStarts?: Record<string, TrainStartSpec & { note?: string }>;
   /** Optional (§7.1 note): switches the Variablenliste commands but the board lacks. */
   unplacedSwitches?: UnplacedSwitchSpec[];
 }
