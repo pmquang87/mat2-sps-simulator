@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- MAT2 SPS simulator: track curve with a signal dot -->
+  <rect width="32" height="32" rx="6" fill="#1c2430"/>
+  <path d="M4 26 C 12 26, 20 18, 20 8" fill="none" stroke="#8a939f" stroke-width="2.2"/>
+  <path d="M9 28 C 17 28, 25 20, 25 10" fill="none" stroke="#8a939f" stroke-width="2.2"/>
+  <line x1="5" y1="24.2" x2="9.6" y2="26.4" stroke="#55606c" stroke-width="1.2"/>
+  <line x1="10" y1="23.4" x2="13.8" y2="25.8" stroke="#55606c" stroke-width="1.2"/>
+  <line x1="14.6" y1="21.2" x2="17.8" y2="24" stroke="#55606c" stroke-width="1.2"/>
+  <line x1="18.2" y1="17.6" x2="21.6" y2="19.8" stroke="#55606c" stroke-width="1.2"/>
+  <line x1="19.8" y1="13" x2="23.6" y2="14.4" stroke="#55606c" stroke-width="1.2"/>
+  <circle cx="25.5" cy="6.5" r="3.2" fill="#b02a2a"/>
+</svg>

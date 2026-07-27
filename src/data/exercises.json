@@ -1,0 +1,1149 @@
+{
+  "version": 1,
+  "exercises": [
+    {
+      "id": "gruppeA",
+      "title": { "de": "Aufgabenstellung Gruppe A", "en": "Assignment Group A" },
+      "intro": {
+        "de": "Rangierfahrt aufs Abstellgleis: Die Lok fährt zwei Runden im Uhrzeigersinn über Gleis A, Bahnhof 2 (Gleis 3) und Gleis D. In der ersten Runde wird per Sägefahrt über Bahnhof 3 auf das Abstellgleis rangiert; die zweite Runde endet wieder im Bahnhof 1. Gesamt: 27 Punkte.",
+        "en": "Shunting onto the siding: the loco runs two clockwise laps via track A, station 2 (track 3) and track D. In the first lap a reversing move shunts through station 3 onto the siding; the second lap ends back in station 1. Total: 27 points."
+      },
+      "bounceEnabled": true,
+      "networks": [
+        {
+          "id": "A-NW1",
+          "index": 1,
+          "points": 2,
+          "title": { "de": "Not-Aus HALT!", "en": "Emergency stop HALT!" },
+          "task": {
+            "de": "Aus Sicherheitsgründen wird in der Industrieautomation der Notausstromkreis so verkabelt, dass ein Notausvorfall ein Abfallen des entsprechenden Signals auf logisch 0 in der SPS bewirkt, da eine Unterbrechung des Notausstromkreises durch Drahtbruch einen sofortigen Stillstand der Anlage zur Folge haben muss. Nach einem Stromausfall bei Spannungswiederkehr muss die Anlage aus einem sicheren Zustand gestartet werden können. Der sich an der Plattform befindliche Notausschalter (E 1.7) liefert ebenfalls logisch 0, wenn ein Notaus vorliegt.\nFolgendes ist bei einem Notaus zu tun: Wenn E 1.7 (NotausBit) logisch 0 ist, soll Merker 120.3 (STOP) den Zug immer stoppen. Bedenken Sie beim Lösen dieser Aufgabe, dass eine dynamische Zuweisung (=) das VKE immer auf den Operanden schreibt, eine Speicherfunktion 1 (R, S) nur dann, wenn das VKE logisch 1 ist.",
+            "en": "For safety reasons, industrial emergency-stop circuits are wired so that an emergency event makes the corresponding signal drop to logic 0 in the PLC, because a broken wire in the emergency-stop circuit must also bring the plant to an immediate standstill. After a power outage the plant must restart from a safe state when power returns. The emergency-stop button at the platform (E 1.7) likewise delivers logic 0 while an emergency stop is active.\nWhat must happen on an emergency stop: whenever E 1.7 (NotausBit) is logic 0, flag M 120.3 (STOP) must always stop the train. When solving this task, remember that a dynamic assignment (=) writes the RLO to the operand in every cycle, whereas a memory function (R, S) only acts when the RLO is logic 1."
+          },
+          "hints": [
+            {
+              "level": 1,
+              "title": { "de": "Konzept: 0-aktive Signale", "en": "Concept: active-low signals" },
+              "body": {
+                "de": "Ein drahtbruchsicheres Signal ist im Normalzustand 1. Abfrage des Störfalls daher negiert. Siehe Anleitung IV.2.5.5 (UN).",
+                "en": "A fail-safe signal is 1 in normal operation, so the fault case is queried negated. See Anleitung IV.2.5.5 (UN)."
+              },
+              "anleitungRef": {
+                "section": "IV.2.5.5",
+                "label": { "de": "Anleitung IV.2.5.5 (UN)", "en": "Manual IV.2.5.5 (negated query, UN)" }
+              }
+            },
+            {
+              "level": 2,
+              "title": { "de": "Muster: speicherndes Stoppen", "en": "Pattern: latched stop" },
+              "body": {
+                "de": "Generisches Muster mit neutralen Operanden:\n```awl\nUN E 0.0   // Störsignal 0-aktiv\nS  M 10.0  // Zustand speichernd setzen\n```\nWarum `S` statt `=`? Überlegen Sie, was nach Rückkehr des Signals passieren darf.",
+                "en": "Generic pattern with neutral operands:\n```awl\nUN E 0.0   // fault signal, active-low\nS  M 10.0  // latch the state\n```\nWhy `S` instead of `=`? Consider what may happen once the signal returns."
+              }
+            },
+            {
+              "level": 3,
+              "title": { "de": "Checkliste", "en": "Checklist" },
+              "body": {
+                "de": "– Wird STOP auch OHNE Flanke gesetzt, solange Notaus anliegt?\n– Bleibt STOP nach Signalwiederkehr gesetzt?\n– Sind alle Fahrstufen rückgesetzt?",
+                "en": "– Is STOP set continuously while the emergency stop is active (no edge needed)?\n– Does STOP stay latched after the signal returns?\n– Are all speed levels reset?"
+              }
+            }
+          ],
+          "scenario": [
+            { "atMs": 2000, "action": "notaus", "active": true },
+            { "atMs": 6000, "action": "notaus", "active": false }
+          ],
+          "runTimeoutMs": 30000,
+          "checks": [
+            {
+              "kind": "after",
+              "id": "A-NW1-stop",
+              "description": { "de": "Notaus stoppt den Zug", "en": "Emergency stop halts the train" },
+              "trigger": { "type": "notaus", "active": true },
+              "armWhile": "trainMoving",
+              "expect": { "type": "trainStopped" },
+              "withinMs": 4000
+            },
+            {
+              "kind": "invariant",
+              "id": "A-NW1-halt",
+              "description": { "de": "Kein Losfahren bei aktivem Notaus", "en": "No movement while the emergency stop is active" },
+              "invariant": "notausForcesStop"
+            }
+          ]
+        },
+        {
+          "id": "A-NW2",
+          "index": 2,
+          "points": 4,
+          "title": { "de": "Not-Aus Zurücksetzen", "en": "Emergency stop reset" },
+          "task": {
+            "de": "Die Lok steht im Bahnhof 1. Wenn E 1.7 (NotausBit) logisch 1 wird (!), soll die Lok mit kleiner Geschwindigkeit im Uhrzeigersinn (M 120.2 - Speed1IU) losfahren.\nAnmerkungen:\n- Die Geschwindigkeiten (Speed) sind je nach Fahrtrichtung im Urzeigersinn (IU) und entgegengesetzt (GU) kodiert. Dabei stehen die Geschwindigkeiten 1 bis 3 zur Verfügung.\n- Geschwindigkeiten bitte über eine statische Zuweisung ansprechen.",
+            "en": "The loco is standing in station 1. When E 1.7 (NotausBit) becomes logic 1 (!), the loco shall start moving clockwise at low speed (M 120.2 - Speed1IU).\nNotes:\n- The speeds (Speed) are coded per direction of travel: clockwise (IU) and counter-clockwise (GU). Speeds 1 to 3 are available.\n- Please address the speeds with a static assignment."
+          },
+          "scenario": [
+            { "atMs": 500, "action": "notaus", "active": true },
+            { "atMs": 2500, "action": "notaus", "active": false }
+          ],
+          "runTimeoutMs": 30000,
+          "checks": [
+            {
+              "kind": "after",
+              "id": "A-NW2-start",
+              "description": { "de": "Zug fährt bei Signalwiederkehr los", "en": "Train starts when the signal returns" },
+              "trigger": { "type": "notaus", "active": false },
+              "expect": { "type": "trainStarted", "direction": "IU" },
+              "withinMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW2-speed1",
+              "description": { "de": "Fahrstufe 1 im Uhrzeigersinn", "en": "Speed level 1, clockwise" },
+              "events": [{ "type": "speedCommand", "level": 1, "direction": "IU" }]
+            },
+            {
+              "kind": "invariant",
+              "id": "A-NW2-exclusive",
+              "description": { "de": "Nie mehrere Fahrstufen gleichzeitig", "en": "Never more than one speed bit at a time" },
+              "invariant": "exclusiveSpeedBit"
+            }
+          ]
+        },
+        {
+          "id": "A-NW3",
+          "index": 3,
+          "points": 2,
+          "title": { "de": "Ausfahrt Bhf 1", "en": "Departure from station 1" },
+          "task": {
+            "de": "Die Lok fährt im Bahnhof 1 an. Zur Ausfahrt auf das Streckengleis A müssen die Weichen \"xW01BH1G1G\" und \"xW02BH1G1R\" des Blocks zur Ausfahrt gestellt werden. Hierzu ist der Reedkontakt im Bahnhof \"xR01BH1G1\" zu nutzen. Gleichzeitig darf die Lok auf mittlere Geschwindigkeit \"Speed2IU\" beschleunigen.\nAnmerkungen:\n- Die Weichen sind entsprechend ihrer Lager auf der Platte kodiert. Beispiel: \"xW02BH1G4R\" — xW02 = Weiche 2, im BH1 = Bahnhof 1, auf G4 = Gleis 4, angesprochen auf R = roter Kontakt. Achtung!: Aus G und R lassen sich keine logischen Zusammenhänge zum Fahrweg ableiten. Verwenden Sie bitte stets die Angabe der Aufgabenstellung.\n- Die Reedkontakte sind analog mit xR = Reedkontakt kodiert.\n- Pro gestellte Weiche beachten Sie bitte die benötigte Zeit von 300ms. Die Weichen sprechen Sie bitte dynamisch an mit einer geeigneten Zeitfunktion.\n- Als Timer können sie die freien Timer 10-20 verwenden. Beachten Sie, dass nur für zeitgleich ablaufende Operationen der selbe Timer verwendet werden kann.",
+            "en": "The loco starts in station 1. For the departure onto line track A, the block's switches \"xW01BH1G1G\" and \"xW02BH1G1R\" must be set. Use the reed contact in the station, \"xR01BH1G1\". At the same time the loco may accelerate to medium speed \"Speed2IU\".\nNotes:\n- Switches are coded by their location on the board. Example: \"xW02BH1G4R\" — xW02 = switch 2, in BH1 = station 1, on G4 = track 4, addressed on R = red contact. Attention: no logical relation between G/R and the travel path can be derived. Always use the assignment's explicit specification.\n- Reed contacts are coded analogously with xR.\n- Allow 300 ms per switch actuation. Drive the switches dynamically with a suitable timer function.\n- The free timers 10-20 are available. Note that one timer may only be shared by operations that run at the same time."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW3-w1",
+              "description": { "de": "Weiche 1 wird per 300-ms-Impuls gestellt", "en": "Switch 1 pulsed for 300 ms" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH1G1" },
+                { "type": "switchPulse", "switchId": "xW01BH1G1", "coil": "G", "minDurationMs": 200, "maxDurationMs": 500 }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW3-w2",
+              "description": { "de": "Weiche 2 wird per 300-ms-Impuls gestellt", "en": "Switch 2 pulsed for 300 ms" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH1G1" },
+                { "type": "switchPulse", "switchId": "xW02BH1G1", "coil": "R", "minDurationMs": 200, "maxDurationMs": 500 }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW3-speed2",
+              "description": { "de": "Beschleunigung auf Fahrstufe 2", "en": "Acceleration to speed level 2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH1G1" },
+                { "type": "speedCommand", "level": 2, "direction": "IU" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "invariant",
+              "id": "A-NW3-nocoil",
+              "description": { "de": "Keine dauerbestromte Weichenspule", "en": "No permanently energized switch coil" },
+              "invariant": "noCoilHeld"
+            }
+          ]
+        },
+        {
+          "id": "A-NW4",
+          "index": 4,
+          "points": 1,
+          "title": { "de": "Überlandfahrt 1", "en": "Cross-country run 1" },
+          "task": {
+            "de": "Auf freier Strecke darf die Lok mit voller Geschwindigkeit \"Speed3IU\" fahren. Beim Überfahren des Reedkontakts \"xR03A\" darf die Geschwindigkeit erhöht werden.",
+            "en": "On the open line the loco may run at full speed \"Speed3IU\". When passing reed contact \"xR03A\" the speed may be increased."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW4-speed3",
+              "description": { "de": "Volle Fahrt nach xR03A", "en": "Full speed after the trigger reed" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "speedCommand", "level": 3, "direction": "IU" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "A-NW5",
+          "index": 5,
+          "points": 2,
+          "title": { "de": "Einfahrt in Bhf 2", "en": "Entry into station 2" },
+          "task": {
+            "de": "Zur Einfahrt in den Bahnhof 2 ist die Geschwindigkeit auf \"Speed2IU\" zu reduzieren. Konkret bedeutet das: Bei Überfahren des Reedkontakt \"xR01A\" ist die Geschwindigkeit auf \"Speed2U\" zu drosseln. Gleichfalls müssen die Weichen \"xW02BH2G1R\", \"xW04BH2G2R\", \"xW03BH2G2R\", \"xW02BH2G3R\" sowie \"xW03BH2G3G\" für eine korrekte Durchfahrt durch den Bahnhof gestellt werden.",
+            "en": "For the entry into station 2 the speed must be reduced to \"Speed2IU\". Concretely: when passing reed contact \"xR01A\", throttle to \"Speed2U\" [sic]. Likewise the switches \"xW02BH2G1R\", \"xW04BH2G2R\", \"xW03BH2G2R\", \"xW02BH2G3R\" and \"xW03BH2G3G\" must be set for a correct passage through the station."
+          },
+          "symbolNotes": {
+            "de": "Der Aufgabentext schreibt \"Speed2U\" — das Symbol in der Variablenliste heißt Speed2IU.",
+            "en": "The task text says \"Speed2U\" — the symbol in the variable list is Speed2IU."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW5-speed2",
+              "description": { "de": "Drosselung auf Fahrstufe 2", "en": "Throttle to speed level 2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01A" },
+                { "type": "speedCommand", "level": 2, "direction": "IU" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW5-w1",
+              "description": { "de": "Weichenstraße: xW02BH2G1", "en": "Point route: xW02BH2G1" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01A" },
+                { "type": "switchPulse", "switchId": "xW02BH2G1", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW5-w2",
+              "description": { "de": "Weichenstraße: xW04BH2G2", "en": "Point route: xW04BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01A" },
+                { "type": "switchPulse", "switchId": "xW04BH2G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW5-w3",
+              "description": { "de": "Weichenstraße: xW03BH2G2", "en": "Point route: xW03BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01A" },
+                { "type": "switchPulse", "switchId": "xW03BH2G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW5-w4",
+              "description": { "de": "Weichenstraße: xW02BH2G3", "en": "Point route: xW02BH2G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01A" },
+                { "type": "switchPulse", "switchId": "xW02BH2G3", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW5-w5",
+              "description": { "de": "Weichenstraße: xW03BH2G3", "en": "Point route: xW03BH2G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01A" },
+                { "type": "switchPulse", "switchId": "xW03BH2G3", "coil": "G" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "A-NW6",
+          "index": 6,
+          "points": 2,
+          "title": { "de": "Durchfahrt durch Bhf 2", "en": "Passage through station 2" },
+          "task": {
+            "de": "Nach Passieren der Weichenstraße wird Reedkontakt \"xR02BH02G3\" überfahren. Die Geschwindigkeit wird gehalten. Da im Bhf2 kein Halt erfolgt, ist zur Ausfahrt die Weichenstraße am Ende des Bahnhofs zur Ausfahrt zu stellen. Hierzu sind die Einzelweichen \"xW01BH2G3R\", \"xW02BH2G2G\" sowie \"xW01BH2G2R\" zu stellen.",
+            "en": "After the point route, reed contact \"xR02BH02G3\" [sic] is passed. Speed is maintained. Since there is no stop in station 2, the point route at the end of the station must be set for the exit. Set the individual switches \"xW01BH2G3R\", \"xW02BH2G2G\" and \"xW01BH2G2R\"."
+          },
+          "symbolNotes": {
+            "de": "Der Aufgabentext schreibt \"xR02BH02G3\" — das Symbol heißt xR02BH2G3 (ohne führende Null).",
+            "en": "The task text says \"xR02BH02G3\" — the symbol is xR02BH2G3 (no leading zero)."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW6-w1",
+              "description": { "de": "Ausfahrweiche xW01BH2G3", "en": "Exit switch xW01BH2G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH2G3" },
+                { "type": "switchPulse", "switchId": "xW01BH2G3", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW6-w2",
+              "description": { "de": "Ausfahrweiche xW02BH2G2", "en": "Exit switch xW02BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH2G3" },
+                { "type": "switchPulse", "switchId": "xW02BH2G2", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW6-w3",
+              "description": { "de": "Ausfahrweiche xW01BH2G2", "en": "Exit switch xW01BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH2G3" },
+                { "type": "switchPulse", "switchId": "xW01BH2G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "A-NW7",
+          "index": 7,
+          "points": 2,
+          "title": { "de": "Überlandfahrt 2", "en": "Cross-country run 2" },
+          "task": {
+            "de": "Bei Passierien des Reedkontakt \"xR03D\" ist in Vorbereitung auf die Rangierfahrt die folgende Weichenstraße zu stellen: \"xW02DG\", \"xW05DG\", \"xW04DR\", \"xW01DR\" sowie \"xW03DG\". Damit bewegt sich die Lok auf dem Gleis weiter in Richtung Bahnhof 1.",
+            "en": "When passing reed contact \"xR03D\", set the following point route in preparation for the shunting move: \"xW02DG\", \"xW05DG\", \"xW04DR\", \"xW01DR\" and \"xW03DG\". The loco thus continues on the track toward station 1."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW7-w1",
+              "description": { "de": "Weichenstraße: xW02D", "en": "Point route: xW02D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03D" },
+                { "type": "switchPulse", "switchId": "xW02D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW7-w2",
+              "description": { "de": "Weichenstraße: xW05D", "en": "Point route: xW05D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03D" },
+                { "type": "switchPulse", "switchId": "xW05D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW7-w3",
+              "description": { "de": "Weichenstraße: xW04D", "en": "Point route: xW04D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03D" },
+                { "type": "switchPulse", "switchId": "xW04D", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW7-w4",
+              "description": { "de": "Weichenstraße: xW01D", "en": "Point route: xW01D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03D" },
+                { "type": "switchPulse", "switchId": "xW01D", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW7-w5",
+              "description": { "de": "Weichenstraße: xW03D", "en": "Point route: xW03D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03D" },
+                { "type": "switchPulse", "switchId": "xW03D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "A-NW8",
+          "index": 8,
+          "points": 5,
+          "title": { "de": "Rangierfahrt HALT", "en": "Shunting move HALT" },
+          "task": {
+            "de": "Bei Erreichen des Reedkontakt \"xR01D\" soll die Lok anhalten. Nach Ablauf einer Wartezeit von 5s werden die Weichen \"xW02DR\" sowie \"xW01DG\" hinter der Lok gestellt und die Lok soll nun zurückstoßen auf das Abstellgleis.\nAnmerkungen:\n- Beachten Sie, dass der Reedkontakt einen realen Schalter darstellt, der prellen kann.\n- Implementieren Sie softwaretechnisch ein Entprellen des Schalters und beachten Sie, dass nur in der ersten Runde eine Rangierfahrt eingeleitet werden soll.",
+            "en": "When reaching reed contact \"xR01D\" the loco shall stop. After a 5 s wait, the switches \"xW02DR\" and \"xW01DG\" behind the loco are set and the loco shall now push back onto the siding.\nNotes:\n- Remember that the reed contact is a real switch that can bounce.\n- Implement a software debounce and note that the shunting move must only be initiated in the first lap."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW8-halt",
+              "description": { "de": "Halt, 5 s Wartezeit, Rückstoß", "en": "Stop, 5 s wait, push back" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "trainStopped" },
+                { "type": "trainStarted", "direction": "GU" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW8-w1",
+              "description": { "de": "Weiche hinter der Lok: xW02D", "en": "Switch behind the loco: xW02D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "switchPulse", "switchId": "xW02D", "coil": "R" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW8-w2",
+              "description": { "de": "Weiche hinter der Lok: xW01D", "en": "Switch behind the loco: xW01D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "switchPulse", "switchId": "xW01D", "coil": "G" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "A-NW9",
+          "index": 9,
+          "points": 1,
+          "title": { "de": "Weichenstellung auf Abstellgleis", "en": "Setting the switch to the siding" },
+          "task": {
+            "de": "Beim Überfahren des Reedkontakts \"xR01BH3G2\" wird die Weiche \"xW02BH3G2R\" geschalten, um den Zug auf dem Abstellgleis rangieren zu lassen.",
+            "en": "When passing reed contact \"xR01BH3G2\", switch \"xW02BH3G2R\" is actuated so the train can shunt onto the siding."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW9-w1",
+              "description": { "de": "Abzweig aufs Abstellgleis", "en": "Branch onto the siding" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW02BH3G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "A-NW10",
+          "index": 10,
+          "points": 3,
+          "title": { "de": "HALT Abstellgleis", "en": "HALT on the siding" },
+          "task": {
+            "de": "Beim Überfahren des Reedkontakts \"xR02BH3G3\" soll der Zug stoppen. Die Anhaltedauer beträgt 3s. Anschließend soll der Zug wieder auf das Hauptgleis D zurückfahren. Die Fahrt wird in Richtung Bahnhof 1 fortgesetzt. Zur Durchfahrt durch den Bahnhof 1 sind die Weichen \"xW03BH1G4G\", \"xW05BH1G3G\", \"xW04BH1G2G\" sowie \"xW05BH1G2G\" entsprechend zu stellen.",
+            "en": "When passing reed contact \"xR02BH3G3\" the train shall stop. The stop lasts 3 s. Afterwards the train returns to main track D and continues toward station 1. For the passage through station 1, set the switches \"xW03BH1G4G\", \"xW05BH1G3G\", \"xW04BH1G2G\" and \"xW05BH1G2G\" accordingly."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW10-halt",
+              "description": { "de": "3-s-Halt und Rückfahrt", "en": "3 s stop and return" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH3G3" },
+                { "type": "trainStopped" },
+                { "type": "trainStarted", "direction": "IU" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW10-w1",
+              "description": { "de": "Durchfahrt: xW03BH1G4", "en": "Passage: xW03BH1G4" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH3G3" },
+                { "type": "switchPulse", "switchId": "xW03BH1G4", "coil": "G" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW10-w2",
+              "description": { "de": "Durchfahrt: xW05BH1G3", "en": "Passage: xW05BH1G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH3G3" },
+                { "type": "switchPulse", "switchId": "xW05BH1G3", "coil": "G" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW10-w3",
+              "description": { "de": "Durchfahrt: xW04BH1G2", "en": "Passage: xW04BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH3G3" },
+                { "type": "switchPulse", "switchId": "xW04BH1G2", "coil": "G" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "A-NW10-w4",
+              "description": { "de": "Durchfahrt: xW05BH1G2", "en": "Passage: xW05BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH3G3" },
+                { "type": "switchPulse", "switchId": "xW05BH1G2", "coil": "G" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "A-NW11",
+          "index": 11,
+          "points": 3,
+          "title": { "de": "2.Runde", "en": "Second lap" },
+          "task": {
+            "de": "Nach Absolvieren einer weiteren Runde, allerdings ohne Rangierfahrt, soll die Lok wieder im Bahnhof 1 nach dem Reedkontakt \"xR01BH1G1\" stehen bleiben.",
+            "en": "After completing one more lap — this time without the shunting move — the loco shall come to a stop in station 1 again, after reed contact \"xR01BH1G1\"."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "A-NW11-end",
+              "description": { "de": "Endhalt im Bahnhof 1 nach der dritten Überfahrt", "en": "Final stop in station 1 after the third crossing" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH1G1" },
+                { "type": "reedClosed", "reedId": "xR01BH1G1" },
+                { "type": "reedClosed", "reedId": "xR01BH1G1" },
+                { "type": "trainStopped" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gruppeB",
+      "title": { "de": "Aufgabenstellung Gruppe B", "en": "Assignment Group B" },
+      "intro": {
+        "de": "See-Kehre und Rangieren in Bahnhof 1: Die Lok rangiert per Sägefahrten über Gleis 3 des Bahnhofs 1, fährt über Gleis B und Bahnhof 2, durch die Wendeschleife (See-Kehre) und über Bahnhof 3 zurück, und endet auf dem ursprünglichen Gleis 4. Gesamt: 27 Punkte.",
+        "en": "Lake loop and shunting in station 1: the loco shunts via saw-tooth moves through station 1 track 3, runs via track B and station 2, through the reversing loop (See-Kehre) and back via station 3, ending on the original track 4. Total: 27 points."
+      },
+      "bounceEnabled": false,
+      "networks": [
+        {
+          "id": "B-NW1",
+          "index": 1,
+          "points": 2,
+          "title": { "de": "Not-Aus HALT!", "en": "Emergency stop HALT!" },
+          "task": {
+            "de": "Aus Sicherheitsgründen wird in der Industrieautomation der Notausstromkreis so verkabelt, dass ein Notausvorfall ein Abfallen des entsprechenden Signals auf logisch 0 in der SPS bewirkt, da eine Unterbrechung des Notausstromkreises durch Drahtbruch einen sofortigen Stillstand der Anlage zur Folge haben muss. Nach einem Stromausfall bei Spannungswiederkehr muss die Anlage aus einem sicheren Zustand gestartet werden können. Der sich an der Plattform befindliche Notausschalter (E 1.7) liefert ebenfalls logisch 0, wenn ein Notaus vorliegt.\nFolgendes ist bei einem Notaus zu tun: Wenn E 1.7 (NotausBit) logisch 0 ist, soll Merker 120.3 (STOP) den Zug immer stoppen. Bedenken Sie beim Lösen dieser Aufgabe, dass eine dynamische Zuweisung (=) das VKE immer auf den Operanden schreibt, eine Speicherfunktion 1 (R, S) nur dann, wenn das VKE logisch 1 ist.",
+            "en": "For safety reasons, industrial emergency-stop circuits are wired so that an emergency event makes the corresponding signal drop to logic 0 in the PLC, because a broken wire in the emergency-stop circuit must also bring the plant to an immediate standstill. After a power outage the plant must restart from a safe state when power returns. The emergency-stop button at the platform (E 1.7) likewise delivers logic 0 while an emergency stop is active.\nWhat must happen on an emergency stop: whenever E 1.7 (NotausBit) is logic 0, flag M 120.3 (STOP) must always stop the train. When solving this task, remember that a dynamic assignment (=) writes the RLO to the operand in every cycle, whereas a memory function (R, S) only acts when the RLO is logic 1."
+          },
+          "hints": [
+            {
+              "level": 1,
+              "title": { "de": "Konzept: 0-aktive Signale", "en": "Concept: active-low signals" },
+              "body": {
+                "de": "Ein drahtbruchsicheres Signal ist im Normalzustand 1. Abfrage des Störfalls daher negiert. Siehe Anleitung IV.2.5.5 (UN).",
+                "en": "A fail-safe signal is 1 in normal operation, so the fault case is queried negated. See Anleitung IV.2.5.5 (UN)."
+              },
+              "anleitungRef": {
+                "section": "IV.2.5.5",
+                "label": { "de": "Anleitung IV.2.5.5 (UN)", "en": "Manual IV.2.5.5 (negated query, UN)" }
+              }
+            },
+            {
+              "level": 2,
+              "title": { "de": "Muster: speicherndes Stoppen", "en": "Pattern: latched stop" },
+              "body": {
+                "de": "Generisches Muster mit neutralen Operanden:\n```awl\nUN E 0.0   // Störsignal 0-aktiv\nS  M 10.0  // Zustand speichernd setzen\n```\nWarum `S` statt `=`? Überlegen Sie, was nach Rückkehr des Signals passieren darf.",
+                "en": "Generic pattern with neutral operands:\n```awl\nUN E 0.0   // fault signal, active-low\nS  M 10.0  // latch the state\n```\nWhy `S` instead of `=`? Consider what may happen once the signal returns."
+              }
+            },
+            {
+              "level": 3,
+              "title": { "de": "Checkliste", "en": "Checklist" },
+              "body": {
+                "de": "– Wird STOP auch OHNE Flanke gesetzt, solange Notaus anliegt?\n– Bleibt STOP nach Signalwiederkehr gesetzt?\n– Sind alle Fahrstufen rückgesetzt?",
+                "en": "– Is STOP set continuously while the emergency stop is active (no edge needed)?\n– Does STOP stay latched after the signal returns?\n– Are all speed levels reset?"
+              }
+            }
+          ],
+          "scenario": [
+            { "atMs": 2000, "action": "notaus", "active": true },
+            { "atMs": 6000, "action": "notaus", "active": false }
+          ],
+          "runTimeoutMs": 30000,
+          "checks": [
+            {
+              "kind": "after",
+              "id": "B-NW1-stop",
+              "description": { "de": "Notaus stoppt den Zug", "en": "Emergency stop halts the train" },
+              "trigger": { "type": "notaus", "active": true },
+              "armWhile": "trainMoving",
+              "expect": { "type": "trainStopped" },
+              "withinMs": 4000
+            },
+            {
+              "kind": "invariant",
+              "id": "B-NW1-halt",
+              "description": { "de": "Kein Losfahren bei aktivem Notaus", "en": "No movement while the emergency stop is active" },
+              "invariant": "notausForcesStop"
+            }
+          ]
+        },
+        {
+          "id": "B-NW2",
+          "index": 2,
+          "points": 4,
+          "title": { "de": "Not-Aus Zurücksetzen", "en": "Emergency stop reset" },
+          "task": {
+            "de": "Die Lok steht im Bahnhof 1. Wenn E 1.7 (NotausBit) logisch 1 wird (!), soll die Lok mit kleiner Geschwindigkeit im Uhrzeigersinn (M 120.2 - Speed1IU) losfahren.\nAnmerkungen:\n- Die Geschwindigkeiten (Speed) sind je nach Fahrtrichtung im Urzeigersinn (IU) und entgegengesetzt (GU) kodiert. Dabei stehen die Geschwindigkeiten 1 bis 3 zur Verfügung.\n- Geschwindigkeiten bitte über eine statische Zuweisung ansprechen.",
+            "en": "The loco is standing in station 1. When E 1.7 (NotausBit) becomes logic 1 (!), the loco shall start moving clockwise at low speed (M 120.2 - Speed1IU).\nNotes:\n- The speeds (Speed) are coded per direction of travel: clockwise (IU) and counter-clockwise (GU). Speeds 1 to 3 are available.\n- Please address the speeds with a static assignment."
+          },
+          "scenario": [
+            { "atMs": 500, "action": "notaus", "active": true },
+            { "atMs": 2500, "action": "notaus", "active": false }
+          ],
+          "runTimeoutMs": 30000,
+          "checks": [
+            {
+              "kind": "after",
+              "id": "B-NW2-start",
+              "description": { "de": "Zug fährt bei Signalwiederkehr los", "en": "Train starts when the signal returns" },
+              "trigger": { "type": "notaus", "active": false },
+              "expect": { "type": "trainStarted", "direction": "IU" },
+              "withinMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW2-speed1",
+              "description": { "de": "Fahrstufe 1 im Uhrzeigersinn", "en": "Speed level 1, clockwise" },
+              "events": [{ "type": "speedCommand", "level": 1, "direction": "IU" }]
+            },
+            {
+              "kind": "invariant",
+              "id": "B-NW2-exclusive",
+              "description": { "de": "Nie mehrere Fahrstufen gleichzeitig", "en": "Never more than one speed bit at a time" },
+              "invariant": "exclusiveSpeedBit"
+            }
+          ]
+        },
+        {
+          "id": "B-NW3",
+          "index": 3,
+          "points": 2,
+          "title": { "de": "Einbiegen in See-Kehre", "en": "Turning into the lake loop" },
+          "task": {
+            "de": "Beim Überfahren des Reedkontakts \"xR03BH1G4\" sollen die Weichen zum Einfahren in die See-Kehre gestellt werden. Hierzu sind die Weichen \"xW02BH1G4R\", \"xW03CG\", \"xW04CG\" zu stellen.\nAnmerkungen:\n- Die Weichen sind entsprechend ihrer Lager auf der Platte kodiert. Beispiel: \"xW02BH1G4R\" — xW02 = Weiche 2, im BH1 = Bahnhof 1, auf G4 = Gleis 4, angesprochen auf R = roter Kontakt. Achtung!: Aus G und R lassen sich keine logischen Zusammenhänge zum Fahrweg ableiten. Verwenden Sie bitte stets die Angabe der Aufgabenstellung.\n- Die Reedkontakte sind analog mit xR = Reedkontakt kodiert.\n- Pro gestellte Weiche beachten Sie bitte die benötigte Zeit von 300ms. Die Weichen sprechen Sie bitte dynamisch an mit einer geeigneten Zeitfunktion.\n- Als Timer können sie die freien Timer 10-20 verwenden. Beachten Sie, dass nur für zeitgleich ablaufende Operationen der selbe Timer verwendet werden kann.",
+            "en": "When passing reed contact \"xR03BH1G4\", set the switches for entering the lake loop (See-Kehre): \"xW02BH1G4R\", \"xW03CG\", \"xW04CG\".\nNotes:\n- Switches are coded by their location on the board. Example: \"xW02BH1G4R\" — xW02 = switch 2, in BH1 = station 1, on G4 = track 4, addressed on R = red contact. Attention: no logical relation between G/R and the travel path can be derived. Always use the assignment's explicit specification.\n- Reed contacts are coded analogously with xR.\n- Allow 300 ms per switch actuation. Drive the switches dynamically with a suitable timer function.\n- The free timers 10-20 are available. Note that one timer may only be shared by operations that run at the same time."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW3-w1",
+              "description": { "de": "Einfahrt See-Kehre: xW02BH1G4", "en": "Loop entry: xW02BH1G4" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G4" },
+                { "type": "switchPulse", "switchId": "xW02BH1G4", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW3-w2",
+              "description": { "de": "Einfahrt See-Kehre: xW03C", "en": "Loop entry: xW03C" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G4" },
+                { "type": "switchPulse", "switchId": "xW03C", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW3-w3",
+              "description": { "de": "Einfahrt See-Kehre: xW04C", "en": "Loop entry: xW04C" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G4" },
+                { "type": "switchPulse", "switchId": "xW04C", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "invariant",
+              "id": "B-NW3-nocoil",
+              "description": { "de": "Keine dauerbestromte Weichenspule", "en": "No permanently energized switch coil" },
+              "invariant": "noCoilHeld"
+            }
+          ]
+        },
+        {
+          "id": "B-NW4",
+          "index": 4,
+          "points": 2,
+          "title": { "de": "Ausfahrt nach Bahnhof 3", "en": "Exit toward station 3" },
+          "task": {
+            "de": "Beim Überfahren des Reedkontakt \"xR01K\" sollen die Weichen der Wendeschleife so umgestellt werden, dass eine Weiterfahrt in Richtung Bahnhof 3 mit \"Speed2IU\" möglich wird. Hierzu sind die Weichen \"xW03CR\", \"xW03BH3G2R\", \"xW02BH3G2G\" sowie \"xW04CR\" zu stellen. Die nachgeschaltete Weiche \"xW02CR\" ist ebenfalls zu stellen.",
+            "en": "When passing reed contact \"xR01K\", the reversing-loop switches must be re-set so the run can continue toward station 3 at \"Speed2IU\". Set the switches \"xW03CR\", \"xW03BH3G2R\", \"xW02BH3G2G\" and \"xW04CR\". The downstream switch \"xW02CR\" must be set as well."
+          },
+          "symbolNotes": {
+            "de": "Achtung Case-Falle: Der Aufgabentext schreibt \"xW03CR\" — in der Variablenliste heißt das Symbol \"XW03CR\" (großes X!). Der Symbolvergleich ist case-sensitiv.",
+            "en": "Case trap: the task text writes \"xW03CR\" — the variable list spells the symbol \"XW03CR\" (capital X!). Symbol lookup is case-sensitive."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW4-speed2",
+              "description": { "de": "Weiterfahrt mit Fahrstufe 2", "en": "Continue at speed level 2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01K" },
+                { "type": "speedCommand", "level": 2, "direction": "IU" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW4-w1",
+              "description": { "de": "Ausfahrt Schleife: xW03C", "en": "Loop exit: xW03C" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01K" },
+                { "type": "switchPulse", "switchId": "xW03C", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW4-w2",
+              "description": { "de": "Fahrweg BH3: xW03BH3G2", "en": "Route BH3: xW03BH3G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01K" },
+                { "type": "switchPulse", "switchId": "xW03BH3G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW4-w3",
+              "description": { "de": "Fahrweg BH3: xW02BH3G2", "en": "Route BH3: xW02BH3G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01K" },
+                { "type": "switchPulse", "switchId": "xW02BH3G2", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW4-w4",
+              "description": { "de": "Ausfahrt Schleife: xW04C", "en": "Loop exit: xW04C" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01K" },
+                { "type": "switchPulse", "switchId": "xW04C", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW4-w5",
+              "description": { "de": "Nachgeschaltete Weiche: xW02C", "en": "Downstream switch: xW02C" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01K" },
+                { "type": "switchPulse", "switchId": "xW02C", "coil": "R" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "B-NW5",
+          "index": 5,
+          "points": 1,
+          "title": { "de": "Einfahrt auf Hauptstrecke", "en": "Entry onto the main line" },
+          "task": {
+            "de": "Nach Durchfahrt des Tunnels soll wieder auf die Hauptstrecke eingebogen werden. Hierzu sind mithilfe des Reedkontaktes \"xR01BH03G2\" die Weichen \"xW01DG\", \"xW02DR\", \"xW03DG\", \"xW03BH1G4G\", \"xW05BH1G3G\", \"xW04BH1G2G\" sowie \"xW05BH1G2G\" zu stellen.",
+            "en": "After passing through the tunnel, the train shall turn back onto the main line. Using reed contact \"xR01BH03G2\" [sic], set the switches \"xW01DG\", \"xW02DR\", \"xW03DG\", \"xW03BH1G4G\", \"xW05BH1G3G\", \"xW04BH1G2G\" and \"xW05BH1G2G\"."
+          },
+          "symbolNotes": {
+            "de": "Der Aufgabentext schreibt \"xR01BH03G2\" — das Symbol heißt xR01BH3G2 (ohne führende Null).",
+            "en": "The task text says \"xR01BH03G2\" — the symbol is xR01BH3G2 (no leading zero)."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW5-w1",
+              "description": { "de": "Hauptstrecke: xW01D", "en": "Main line: xW01D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW01D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW5-w2",
+              "description": { "de": "Hauptstrecke: xW02D", "en": "Main line: xW02D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW02D", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW5-w3",
+              "description": { "de": "Hauptstrecke: xW03D", "en": "Main line: xW03D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW03D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW5-w4",
+              "description": { "de": "Durchfahrt BH1: xW03BH1G4", "en": "Station 1 passage: xW03BH1G4" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW03BH1G4", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW5-w5",
+              "description": { "de": "Durchfahrt BH1: xW05BH1G3", "en": "Station 1 passage: xW05BH1G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW05BH1G3", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW5-w6",
+              "description": { "de": "Durchfahrt BH1: xW04BH1G2", "en": "Station 1 passage: xW04BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW04BH1G2", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW5-w7",
+              "description": { "de": "Durchfahrt BH1: xW05BH1G2", "en": "Station 1 passage: xW05BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01BH3G2" },
+                { "type": "switchPulse", "switchId": "xW05BH1G2", "coil": "G" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "B-NW6",
+          "index": 6,
+          "points": 1,
+          "title": { "de": "Durchfahrt Bahnhof 1", "en": "Passage through station 1" },
+          "task": {
+            "de": "Für die Durchfahrt des Bahnhof 1 ist bei Reedkontakt \"xR02BH1G1\" zunächst die Geschwindigkeit auf \"Speed1U\" zu reduzieren, sowie die Weichen auf dem Hauptgleis \"xW01BH1G1G\" und \"xW02BH1G1R\" entsprechend zu stellen.",
+            "en": "For the passage through station 1, first reduce the speed to \"Speed1U\" [sic] at reed contact \"xR02BH1G1\", and set the main-track switches \"xW01BH1G1G\" and \"xW02BH1G1R\" accordingly."
+          },
+          "symbolNotes": {
+            "de": "Der Aufgabentext schreibt \"Speed1U\" — das Symbol heißt Speed1IU.",
+            "en": "The task text says \"Speed1U\" — the symbol is Speed1IU."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW6-speed1",
+              "description": { "de": "Drosselung auf Fahrstufe 1", "en": "Throttle to speed level 1" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH1G1" },
+                { "type": "speedCommand", "level": 1, "direction": "IU" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW6-w1",
+              "description": { "de": "Hauptgleis: xW01BH1G1", "en": "Main track: xW01BH1G1" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH1G1" },
+                { "type": "switchPulse", "switchId": "xW01BH1G1", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW6-w2",
+              "description": { "de": "Hauptgleis: xW02BH1G1", "en": "Main track: xW02BH1G1" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR02BH1G1" },
+                { "type": "switchPulse", "switchId": "xW02BH1G1", "coil": "R" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "B-NW7",
+          "index": 7,
+          "points": 5,
+          "title": { "de": "Rangierfahrt in Bhf 1", "en": "Shunting move in station 1" },
+          "task": {
+            "de": "Bei Erreichen des Reedkontaktes \"xR03A\" ist eine Rangierfahrt durchzuführen. Hierzu wird zunächst für 5s gestoppt. Nach Ablauf der 5s sollen die Weichen \"xW02BH1G1G\", \"xW02BH1G2R\", \"xW03BH1G2G\", \"xW02BH1G3R\" sowie \"xW03BH1G3R\" gestellt werden und der Zug soll mit \"Speed1GU\" zurücksetzen.",
+            "en": "On reaching reed contact \"xR03A\" a shunting move is performed. First stop for 5 s. After the 5 s, set the switches \"xW02BH1G1G\", \"xW02BH1G2R\", \"xW03BH1G2G\", \"xW02BH1G3R\" and \"xW03BH1G3R\", and the train shall push back with \"Speed1GU\"."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW7-halt",
+              "description": { "de": "5-s-Halt, dann Rückstoß", "en": "5 s stop, then push back" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "trainStopped" },
+                { "type": "trainStarted", "direction": "GU" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW7-w1",
+              "description": { "de": "Rangierweg: xW02BH1G1", "en": "Shunt route: xW02BH1G1" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "switchPulse", "switchId": "xW02BH1G1", "coil": "G" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW7-w2",
+              "description": { "de": "Rangierweg: xW02BH1G2", "en": "Shunt route: xW02BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "switchPulse", "switchId": "xW02BH1G2", "coil": "R" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW7-w3",
+              "description": { "de": "Rangierweg: xW03BH1G2", "en": "Shunt route: xW03BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "switchPulse", "switchId": "xW03BH1G2", "coil": "G" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW7-w4",
+              "description": { "de": "Rangierweg: xW02BH1G3", "en": "Shunt route: xW02BH1G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "switchPulse", "switchId": "xW02BH1G3", "coil": "R" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW7-w5",
+              "description": { "de": "Rangierweg: xW03BH1G3", "en": "Shunt route: xW03BH1G3" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03A" },
+                { "type": "switchPulse", "switchId": "xW03BH1G3", "coil": "R" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "B-NW8",
+          "index": 8,
+          "points": 3,
+          "title": { "de": "Weiterfahrt auf Hauptgleis", "en": "Continuing on the main track" },
+          "task": {
+            "de": "Wird der Kontakt \"xR03BH1G3\" erreicht, ist die gegenläufige Rangierfahrt einzuleiten. Zunächst soll der Zug wieder für 5s stoppen, danach sollen die Weichen entsprechend der Ausfahrt auf \"xW03BH1G2R\", \"xW01BH1G2R\" gestellt werden. Die Ausfahrt soll mit \"Speed1IU\" erfolgen.",
+            "en": "When contact \"xR03BH1G3\" is reached, the opposite shunting move is initiated. First the train stops for 5 s again, then the switches are set for the exit: \"xW03BH1G2R\", \"xW01BH1G2R\". The exit shall be at \"Speed1IU\"."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW8-halt",
+              "description": { "de": "5-s-Halt, dann Ausfahrt", "en": "5 s stop, then exit" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G3" },
+                { "type": "trainStopped" },
+                { "type": "trainStarted", "direction": "IU" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW8-w1",
+              "description": { "de": "Ausfahrt: xW03BH1G2", "en": "Exit: xW03BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G3" },
+                { "type": "switchPulse", "switchId": "xW03BH1G2", "coil": "R" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW8-w2",
+              "description": { "de": "Ausfahrt: xW01BH1G2", "en": "Exit: xW01BH1G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G3" },
+                { "type": "switchPulse", "switchId": "xW01BH1G2", "coil": "R" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "B-NW9",
+          "index": 9,
+          "points": 2,
+          "title": { "de": "Überlandfahrt", "en": "Cross-country run" },
+          "task": {
+            "de": "Zur Überlandfahrt durch den Bahnhof 2 soll mit voller Geschwindigkeit \"Speed3IU\" gefahren werden. Diese soll ab Reedkontakt \"xR03B\" gefahren werden. Gleichzeitig sollen die Weichen \"xW04BH2G2G\", \"xW03BH2G2G\", \"xW02BH2G2R\", \"xW01BH2G2R\", \"xW04DG\", \"xW05DG\", \"xW02DG\" für den Blockabschnitt gestellt werden.",
+            "en": "For the cross-country run through station 2, run at full speed \"Speed3IU\", starting from reed contact \"xR03B\". At the same time, set the switches \"xW04BH2G2G\", \"xW03BH2G2G\", \"xW02BH2G2R\", \"xW01BH2G2R\", \"xW04DG\", \"xW05DG\", \"xW02DG\" for the block section."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW9-speed3",
+              "description": { "de": "Volle Fahrt ab xR03B", "en": "Full speed from the trigger reed" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "speedCommand", "level": 3, "direction": "IU" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w1",
+              "description": { "de": "Blockabschnitt: xW04BH2G2", "en": "Block section: xW04BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW04BH2G2", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w2",
+              "description": { "de": "Blockabschnitt: xW03BH2G2", "en": "Block section: xW03BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW03BH2G2", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w3",
+              "description": { "de": "Blockabschnitt: xW02BH2G2", "en": "Block section: xW02BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW02BH2G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w4",
+              "description": { "de": "Blockabschnitt: xW01BH2G2", "en": "Block section: xW01BH2G2" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW01BH2G2", "coil": "R" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w5",
+              "description": { "de": "Blockabschnitt: xW04D", "en": "Block section: xW04D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW04D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w6",
+              "description": { "de": "Blockabschnitt: xW05D", "en": "Block section: xW05D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW05D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW9-w7",
+              "description": { "de": "Blockabschnitt: xW02D", "en": "Block section: xW02D" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03B" },
+                { "type": "switchPulse", "switchId": "xW02D", "coil": "G" }
+              ],
+              "windowMs": 3000
+            }
+          ]
+        },
+        {
+          "id": "B-NW10",
+          "index": 10,
+          "points": 3,
+          "title": { "de": "Einfahrt in den Bahnhof", "en": "Entry into the station" },
+          "task": {
+            "de": "Bei erneutem Erreichen des Reedkontaktes \"xR01D\" soll die Einfahrt in den Bahnhof 1 wieder auf das ursprüngliche Gleis 4 erfolgen. Hierzu ist die Weiche \"xW03BH1G4R\" entsprechend zu stellen. Die Geschwindigkeit soll auf \"Speed1IU\" gedrosselt werden.",
+            "en": "On reaching reed contact \"xR01D\" again, the entry into station 1 shall lead back onto the original track 4. Set switch \"xW03BH1G4R\" accordingly. Throttle the speed to \"Speed1IU\"."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW10-w1",
+              "description": { "de": "Nach der ZWEITEN xR01D-Überfahrt: Weiche aufs Gleis 4", "en": "After the SECOND xR01D crossing: switch to track 4" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "switchPulse", "switchId": "xW03BH1G4", "coil": "R" }
+              ]
+            },
+            {
+              "kind": "seq",
+              "id": "B-NW10-speed1",
+              "description": { "de": "Drosselung auf Fahrstufe 1", "en": "Throttle to speed level 1" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "reedClosed", "reedId": "xR01D" },
+                { "type": "speedCommand", "level": 1, "direction": "IU" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "B-NW11",
+          "index": 11,
+          "points": 2,
+          "title": { "de": "Halt im Bahnhof 1", "en": "Stop in station 1" },
+          "task": {
+            "de": "Beim erneutem Überfahren des Reedkontaktes \"xR03BH1G4\" soll der Zug gestoppt werden.",
+            "en": "When passing reed contact \"xR03BH1G4\" again, the train shall be stopped."
+          },
+          "runTimeoutMs": 300000,
+          "checks": [
+            {
+              "kind": "seq",
+              "id": "B-NW11-end",
+              "description": { "de": "Endhalt nach der zweiten xR03BH1G4-Überfahrt", "en": "Final stop after the second xR03BH1G4 crossing" },
+              "events": [
+                { "type": "reedClosed", "reedId": "xR03BH1G4" },
+                { "type": "reedClosed", "reedId": "xR03BH1G4" },
+                { "type": "trainStopped" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

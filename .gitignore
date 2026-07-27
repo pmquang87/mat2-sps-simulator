@@ -1,0 +1,48 @@
+# Python / IDE
+.venv/
+.idea/
+__pycache__/
+
+# Node
+node_modules/
+dist/
+*.local
+
+# Solutions from a previous session — test oracles only, must never ship.
+# weichen_video.md and DOMAIN_MODEL.md carry solution-derived AWL/resource
+# details and stay local-only as build inputs (see ARCHITECTURE.md §9.4).
+Claude_work/
+docs/research/solutions.md
+docs/research/weichen_video.md
+docs/DOMAIN_MODEL.md
+
+# Documents are not published: the public repository carries CODE ONLY.
+# The design documents, the two course task templates and the course variable
+# list stay on this machine. Every test that reads one of them skips cleanly
+# when it is absent, so a fresh clone still runs all four gates green.
+#
+# Note: .gitignore does not untrack files that are already tracked, so the
+# documents keep their local version history — this only stops new ones from
+# being picked up by `git add -A`, and marks the intent for the public tree.
+docs/
+Gruppe_A_Aufgabe_SS2026.txt
+Gruppe_B_Aufgabe_SS2026.txt
+Variablenliste.txt
+
+# Course material binaries (local only, not for redistribution)
+*.pdf
+*.avi
+*.docx
+*.jpg
+
+# Derived research artefacts: video frames and high-DPI plan renders (~600 MB).
+# Regenerable with the documented ffmpeg / pymupdf commands in docs/research/*.md.
+docs/research/frames/
+
+# Raw per-tile OCR replies (hundreds of one-line .md files) from tools/label_sweep.py.
+# The aggregated findings live in docs/research/unplaced_evidence_*.md.
+docs/research/ocr_*/
+
+# OS
+Thumbs.db
+Desktop.ini

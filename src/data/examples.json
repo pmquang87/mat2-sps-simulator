@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "examples": [
+    {
+      "id": "starter-selfhold-timer",
+      "category": "memory",
+      "starter": true,
+      "title": {
+        "de": "Einstieg: Selbsthaltung mit Einschaltverzögerung",
+        "en": "Getting started: self-holding latch with on-delay"
+      },
+      "body": {
+        "de": "Erstes lauffähiges Programm: Zwei Taster setzen und löschen einen Merker (Selbsthaltung mit S/R), eine Einschaltverzögerung gibt die Folgeaktion erst 3 s später frei. Geschrieben wird nur im Ressourcenbereich für Studierende (M 10.x, T 10) — deshalb meldet die Übersetzung keine Ressourcen-Warnung. Die Eingänge E 0.0 und E 0.1 lassen sich nach dem Laden unten in der Bedienleiste anklicken.",
+        "en": "A first runnable program: two buttons set and clear a flag (self-holding latch with S/R), and an on-delay releases the follow-up action only 3 s later. It writes exclusively into the student resource area (M 10.x, T 10), which is why loading it raises no resource warning. After loading, inputs E 0.0 and E 0.1 can be clicked in the control bar below."
+      },
+      "awl": "// Netzwerk 1: Selbsthaltung\nU    E    0.0   // Start-Taster\nS    M    10.0  // Zustand speichernd setzen\n\nU    E    0.1   // Stopp-Taster\nR    M    10.0  // Zustand zurücksetzen\n\n// Netzwerk 2: Einschaltverzögerung 3 s\nU    M    10.0\nL    S5T#3S\nSE   T    10    // läuft, solange der Zustand ansteht\n\nU    T    10\n=    M    10.1  // Freigabe erst 3 s nach dem Start",
+      "source": "Einstiegsbeispiel (Anleitung IV.2.5.3 + IV.2.6.3)"
+    },
+    {
+      "id": "pump-sr",
+      "category": "memory",
+      "title": { "de": "Abfragen und Speichern: S / R (Anleitung)", "en": "Query and store: S / R (manual)" },
+      "body": {
+        "de": "Lehrbeispiel Pumpe aus der Anleitung: Start-Taster setzt ein Merkerbit, Stopp-Taster setzt es zurück; die Pumpe folgt dem Merker dynamisch.",
+        "en": "Pump teaching example from the manual: the start button sets a flag bit, the stop button resets it; the pump follows the flag dynamically."
+      },
+      "awl": "U    E    0.0   // Wenn S1 (E 0.0) betätigt wird\nS    M    0.0   // setze Merkerbit für Schalter\n\nU    E    0.6   // Wenn S0 (E 0.6) betätigt wird\nR    M    0.0   // Rücksetze Merkerbit für Schalter\n\nU    M    0.0   // Wenn Merkerbit M 0.0 anliegt\n=    A    0.1   // schalte Pumpe (A 0.1) ein, sonst aus",
+      "source": "Anleitung IV.2.5.3"
+    },
+    {
+      "id": "pump-und",
+      "category": "binary",
+      "title": { "de": "UND-Verknüpfung U (Anleitung)", "en": "AND logic U (manual)" },
+      "body": {
+        "de": "VKE wird 1, wenn ALLE abgefragten Variablen 1 sind: Pumpe läuft nur mit gesetztem Merker UND benetztem Trockenlaufschutz.",
+        "en": "The RLO becomes 1 only if ALL queried variables are 1: the pump runs only with the flag set AND the dry-run guard wetted."
+      },
+      "awl": "U    M    0.0   // Wenn Merkerbit M 0.0 anliegt\nU    E    0.5   // und Trockenlaufschutz benetzt ist\n=    A    0.1   // schalte Pumpe (A 0.1) ein, sonst aus",
+      "source": "Anleitung IV.2.5.4"
+    },
+    {
+      "id": "pump-un",
+      "category": "binary",
+      "title": { "de": "Negation UN (Anleitung)", "en": "Negated query UN (manual)" },
+      "body": {
+        "de": "Negierte Abfrage: die Kette bleibt nur wahr, wenn die negiert abgefragten Meldungen NICHT anstehen. Grundmuster für 0-aktive (drahtbruchsichere) Signale.",
+        "en": "Negated query: the chain stays true only while the negated signals are NOT present. The base pattern for active-low (fail-safe) signals."
+      },
+      "awl": "U    M    0.0   // Wenn Merkerbit M 0.0 anliegt\nU    E    0.5   // und Trockenlaufschutz benetzt ist\nUN   E    0.1   // und nicht Leer-Meldung von Tank A\nUN   E    0.4   // und nicht Voll-Meldung von Tank B\n=    A    0.1   // schalte Pumpe (A 0.1) ein, sonst aus",
+      "source": "Anleitung IV.2.5.5"
+    },
+    {
+      "id": "pump-selfhold",
+      "category": "memory",
+      "title": { "de": "Pumpe mit Selbsthaltung (Anleitung)", "en": "Pump with self-holding latch (manual)" },
+      "body": {
+        "de": "Lehrbeispiel aus der Anleitung: Start-/Stopptaster mit S/R, mehrere ODER-Abschaltbedingungen, Ausgang folgt dem Merker.",
+        "en": "Teaching example from the manual: start/stop buttons with S/R, several OR'd shutdown conditions, output follows the flag."
+      },
+      "awl": "U    E    0.0   // S1 Start\nU    E    0.3   // und Leer-Meldung von Tank B\nS    M    0.0\n\nO    E    0.6   // S0 Stopp\nON   E    0.5   // ODER NICHT Trockenlaufschutz benetzt\nO    E    0.1   // ODER Leer-Meldung Tank A\nO    E    0.4   // ODER Voll-Meldung Tank B\nR    M    0.0\n\nU    M    0.0\n=    A    0.1   // Pumpe",
+      "source": "Anleitung IV.2.5.6"
+    },
+    {
+      "id": "timer-si",
+      "category": "timer",
+      "title": { "de": "Impuls SI (Anleitung)", "en": "Pulse SI (manual)" },
+      "body": {
+        "de": "VKE-Flanke 0→1 startet die Zeit; das Zeitbit fällt bei Zeitablauf ODER wenn das VKE vorher abfällt.",
+        "en": "An RLO edge 0→1 starts the timer; the timer bit drops at expiry OR as soon as the RLO drops."
+      },
+      "awl": "U    E    1.0        // liegt E1.0 an\nL S5T#4S500MS        // lade Zeitdauer 4,5 sec\nSI   T    1          // starte die Zeit\n\nU    T    1          // wenn Zeitoperand T 1 TRUE ist\n=    A    0.2        // steuere A 0.2 an",
+      "source": "Anleitung IV.2.6.1"
+    },
+    {
+      "id": "sv-pulse",
+      "category": "timer",
+      "title": { "de": "Verlängerter Impuls (SV)", "en": "Extended pulse (SV)" },
+      "body": {
+        "de": "Kurzer Tastendruck, festes Zeitfenster, nachtriggerbar — das Zeitbit bleibt für die volle Dauer 1, unabhängig vom Eingang. DAS Muster für den 300-ms-Weichenimpuls.",
+        "en": "Short press, fixed time window, retriggerable — the timer bit stays 1 for the full duration regardless of the input. THE pattern behind the 300 ms switch pulse."
+      },
+      "awl": "U  E 1.1\nL  S5T#4S500MS\nSV T 2\nU  E 1.7\nR  T 2\n\nU  T 2\n=  A 0.2",
+      "source": "Anleitung IV.2.6.2"
+    },
+    {
+      "id": "timer-se",
+      "category": "timer",
+      "title": { "de": "Einschaltverzögerung SE (Anleitung)", "en": "On delay SE (manual)" },
+      "body": {
+        "de": "Das Zeitbit wird erst NACH Ablauf der Zeit 1 — und nur, solange der Starteingang noch ansteht. Kürzere Eingangsimpulse bleiben wirkungslos.",
+        "en": "The timer bit becomes 1 only AFTER the time expires — and only while the start input is still present. Shorter input pulses have no effect."
+      },
+      "awl": "U    E    1.2        // liegt E1.2 an\nL S5T#4S500MS        // lade Zeitdauer 4,5 sec\nSE   T    3          // starte die Zeit\nU    E    1.7        // liegt E 1.7 an\nR    T    3          // rücksetze die Zeit\n\nU    T    3          // wenn Zeitoperand T 3 TRUE ist\n=    A    0.2        // steuere A 0.2 an",
+      "source": "Anleitung IV.2.6.3"
+    },
+    {
+      "id": "timer-ss",
+      "category": "timer",
+      "title": { "de": "Speichernde Einschaltverzögerung SS (Anleitung)", "en": "Latching on delay SS (manual)" },
+      "body": {
+        "de": "Nach Ablauf wird das Zeitbit 1 und BLEIBT 1 — unabhängig vom Starteingang — bis die Zeit mit R zurückgesetzt wird. Erneute Startflanke triggert nach.",
+        "en": "After expiry the timer bit becomes 1 and STAYS 1 — regardless of the start input — until the timer is reset with R. A new start edge retriggers."
+      },
+      "awl": "U    E    1.3        // liegt E1.3 an\nL S5T#4S500MS        // lade Zeitdauer 4,5 sec\nSS   T    4          // starte die Zeit\nU    E    1.7        // liegt E 1.7 an\nR    T    4          // rücksetze die Zeit\n\nU    T    4          // wenn Zeitoperand T 4 TRUE ist\n=    A    0.2        // steuere A 0.2 an",
+      "source": "Anleitung IV.2.6.4"
+    },
+    {
+      "id": "timer-sa",
+      "category": "timer",
+      "title": { "de": "Ausschaltverzögerung SA (Anleitung)", "en": "Off delay SA (manual)" },
+      "body": {
+        "de": "Solange das VKE 1 ist, ist das Zeitbit 1; der Wechsel 1→0 startet die Zeit, erst nach deren Ablauf fällt das Zeitbit ab.",
+        "en": "While the RLO is 1, the timer bit is 1; the 1→0 transition starts the timer, and only after expiry does the timer bit drop."
+      },
+      "awl": "U    E    1.4        // liegt E1.4 an\nL S5T#4S500MS        // lade Zeitdauer 4,5 sec\nSA   T    5          // starte die Zeit\nU    E    1.7        // liegt E 1.7 an\nR    T    5          // rücksetze die Zeit\n\nU    T    5          // wenn Zeitoperand T 5 TRUE ist\n=    A    0.2        // steuere A 0.2 an",
+      "source": "Anleitung IV.2.6.5"
+    },
+    {
+      "id": "pump-sa-nachlauf",
+      "category": "pattern",
+      "title": { "de": "Pumpe mit Nachlaufzeit (SA, Anleitung)", "en": "Pump with run-on time (SA, manual)" },
+      "body": {
+        "de": "Angewandtes SA-Beispiel: Die Pumpe läuft nach Wegfall der Startbedingungen noch 3 Sekunden nach.",
+        "en": "Applied SA example: the pump keeps running for 3 more seconds after the start conditions disappear."
+      },
+      "awl": "U    E    0.0   // Wenn S1 (E 0.0) betätigt wird\nU    E    0.3   // und Leer-Meldung von Tank B\nS    M    0.0   // setze Merkerbit für Schalter\n\nU    E    0.5   // solange Trockenlaufschutz benetzt ist\nUN   E    0.1   // UND NICHT Leer-Meldung von Tank A\nUN   E    0.4   // UND NICHT Voll-Meldung von Tank B\nU    M    0.0   // Startbedingungen vorhanden waren\nL    S5T#3S     // 3 sec. Nachlaufzeit\nSA   T    1     // speichern im Zeitoperanden\n\nU    E    0.6   // Wenn S0 (E 0.6) betätigt wird\nR    M    0.0   // Rücksetze Merkerbit für Schalter\n\nU    M    0.0   // Wenn Merkerbit M 0.0 anliegt\nU    T    1     // Abfragen der Zeit\n=    A    0.1   // Ausgang Pumpe (A 0.1)",
+      "source": "Anleitung IV.2.6.6"
+    },
+    {
+      "id": "fp-pulse",
+      "category": "edge",
+      "title": { "de": "Positive Flanke FP (Anleitung)", "en": "Rising edge FP (manual)" },
+      "body": {
+        "de": "FP vergleicht das VKE mit dem Vorzyklus (gespeichert im Flankenoperanden) und liefert genau EINEN Zyklus lang 1. Achtung: Flankenoperand muss zyklusfest sein (Merker, keine temporären Lokaldaten).",
+        "en": "FP compares the RLO with the previous cycle (stored in the edge operand) and yields 1 for exactly ONE cycle. Caution: the edge operand must survive cycles (a flag, not temporary local data)."
+      },
+      "awl": "U    E    0.7   // Frage Eingang E 0.7 ab (VKE-Bit)\nFP   M    10.0  // Flankenoperand (M 10.0)\nS    A    0.3   // Resultierende Aktion",
+      "source": "Anleitung IV.2.7"
+    },
+    {
+      "id": "fn-pulse",
+      "category": "edge",
+      "title": { "de": "Negative Flanke FN (Anleitung)", "en": "Falling edge FN (manual)" },
+      "body": {
+        "de": "Wie FP, aber für den Wechsel 1→0 des VKE.",
+        "en": "Like FP, but for the 1→0 transition of the RLO."
+      },
+      "awl": "U    E    0.7   // Frage Eingang E 0.7 ab\nFN   M    10.0  // Flankenoperand (M 10.0)\nS    A    0.3   // Resultierende Aktion",
+      "source": "Anleitung IV.2.7"
+    },
+    {
+      "id": "jump-cascade",
+      "category": "jump",
+      "title": { "de": "Sprungoperationen SPA / SPB / SPBN (Anleitung)", "en": "Jump operations SPA / SPB / SPBN (manual)" },
+      "body": {
+        "de": "Absoluter Sprung SPA, bedingte Sprünge SPB (bei VKE=1) und SPBN (bei VKE=0); Sprungziel ist eine Marke mit Doppelpunkt.",
+        "en": "Absolute jump SPA, conditional jumps SPB (on RLO=1) and SPBN (on RLO=0); the jump target is a label with a colon."
+      },
+      "awl": "U    E    0.1\nSPB  M001       // wenn VKE = 1, springe zu M001\nU    E    0.2\n=    A    0.1\nSPBN M002       // wenn VKE = 0, springe zu M002\nU    E    0.3\n=    A    0.1\nSPA  M003       // springe zu M003\n\nM001:    NOP  0\nU    E    0.7\n=    A    0.2\nM002:    NOP  0\nM003:    S    A    0.2",
+      "source": "Anleitung IV.2.8"
+    },
+    {
+      "id": "weichenstrasse-template",
+      "category": "pattern",
+      "title": { "de": "Muster: Weichenstraße mit 300-ms-Impuls", "en": "Pattern: point route with 300 ms pulse" },
+      "body": {
+        "de": "Alle Weichen einer Straße aus EINEM SV-Impuls — Operanden neutral.",
+        "en": "All switches of one route from a SINGLE SV pulse — neutral operands."
+      },
+      "awl": "U  E 0.0        // Auslöser (Reedkontakt)\nL  S5T#300MS\nSV T 10\nU  T 10\n=  A 0.0        // Weichenspule 1\nU  T 10\n=  A 0.1        // Weichenspule 2",
+      "source": "Video 08:08 / Hinweise S.3"
+    },
+    {
+      "id": "ss-wait",
+      "category": "pattern",
+      "title": { "de": "Muster: Wartezeit mit SS und Selbst-Reset", "en": "Pattern: wait time with SS and self-reset" },
+      "body": {
+        "de": "Ein kurzer Auslöseimpuls startet eine speichernde Einschaltverzögerung; nach Ablauf wird die Folgeaktion gespeichert und die Zeit über ihr eigenes Bit zurückgesetzt (Pflicht bei SS).",
+        "en": "A short trigger pulse starts a latching on-delay; at expiry the follow-up action is latched and the timer resets itself through its own bit (mandatory for SS)."
+      },
+      "awl": "U  E 0.0        // Auslöser (kurzer Impuls)\nL  S5T#5S\nSS T 12         // 5 s Wartezeit, speichernd\n\nU  T 12\nS  M 10.1       // nach 5 s: Folgeaktion speichern\nU  T 12\nR  T 12         // Zeit zurücksetzen (Pflicht bei SS)",
+      "source": "Thementag Aufgabe 3 (generisches Muster)"
+    },
+    {
+      "id": "debounce-lockout",
+      "category": "pattern",
+      "title": { "de": "Muster: Entprellen mit Flanke und Sperrzeit", "en": "Pattern: debounce with edge and lockout timer" },
+      "body": {
+        "de": "Nur die erste steigende Flanke zählt; ein Sperrfenster (SV) blendet Prellimpulse und Mehrfachüberfahrten aus. Neutrale Operanden — auf die Anlage übertragen selbst zuordnen.",
+        "en": "Only the first rising edge counts; a lockout window (SV) masks bounce pulses and repeated crossings. Neutral operands — map them to the plant yourself."
+      },
+      "awl": "U  E 0.0        // prellender Kontakt\nFP M 10.0       // nur die steigende Flanke\nUN T 15         // und keine Sperrzeit aktiv\nS  M 10.1       // entprellte Aktion auslösen\n\nU  E 0.0\nL  S5T#1S\nSV T 15         // Sperrfenster (nachtriggernd)",
+      "source": "Hinweise S.2 (Konzeptmuster)"
+    },
+    {
+      "id": "counter-rounds",
+      "category": "counter",
+      "title": { "de": "Muster: Rundenzählen mit ZV und Vergleich", "en": "Pattern: lap counting with ZV and compare" },
+      "body": {
+        "de": "Ein flankenbewerteter Sensorimpuls zählt vorwärts; der Vergleich auf den Zielwert schaltet die Folgeaktion. L/T sind VKE-neutral — die Kette nach dem Vergleich fortsetzen.",
+        "en": "An edge-evaluated sensor pulse counts up; comparing against the target value triggers the follow-up action. L/T are RLO-neutral — continue the logic chain after the compare."
+      },
+      "awl": "U   E 0.0       // Rundensensor\nFP  M 10.0      // eine Zählung pro Überfahrt\nZV  Z 1         // Runde zählen\n\nL   Z 1\nL   2\n==I             // zweite Runde erreicht?\nS   M 10.1      // Folgeaktion speichern",
+      "source": "Hinweise S.2 (generisches Muster)"
+    }
+  ]
+}

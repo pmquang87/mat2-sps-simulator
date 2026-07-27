@@ -1,0 +1,706 @@
+{
+  "version": 1,
+  "generatedFrom": "Variablenliste.txt",
+  "generatedAt": "2026-07-27",
+  "entries": [
+    {
+      "symbol": "xW04BH1G4G",
+      "address": "M 100.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH1G4R",
+      "address": "M 106.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH2G2G",
+      "address": "M 102.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH2G2R",
+      "address": "M 108.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH3G2G",
+      "address": "M 103.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH3G2R",
+      "address": "M 109.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04CG",
+      "address": "M 105.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04CR",
+      "address": "M 111.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04DG",
+      "address": "M 104.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04DR",
+      "address": "M 110.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW05BH1G2G",
+      "address": "M 105.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW05BH1G2R",
+      "address": "M 111.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW05BH1G3G",
+      "address": "M 101.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW05DG",
+      "address": "M 104.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW05DR",
+      "address": "M 110.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH1G4R",
+      "address": "M 107.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH2G2G",
+      "address": "M 102.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH2G2R",
+      "address": "M 108.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH2G3G",
+      "address": "M 102.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH2G3R",
+      "address": "M 108.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH3G2G",
+      "address": "M 105.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH3G2R",
+      "address": "M 111.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03CG",
+      "address": "M 103.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03DG",
+      "address": "M 101.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03DR",
+      "address": "M 107.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03EG",
+      "address": "M 104.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03ER",
+      "address": "M 110.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH1G2G",
+      "address": "M 101.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH1G2R",
+      "address": "M 107.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH1G3G",
+      "address": "M 101.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW04BH1G3R",
+      "address": "M 107.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH2G2R",
+      "address": "M 109.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH2G3G",
+      "address": "M 102.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH2G3R",
+      "address": "M 108.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH3G2G",
+      "address": "M 104.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH3G2R",
+      "address": "M 110.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02CG",
+      "address": "M 103.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02CR",
+      "address": "M 109.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02DG",
+      "address": "M 101.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02DR",
+      "address": "M 107.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02EG",
+      "address": "M 100.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02ER",
+      "address": "M 106.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH1G2G",
+      "address": "M 105.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH1G2R",
+      "address": "M 111.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH1G3G",
+      "address": "M 105.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH1G3R",
+      "address": "M 111.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW03BH1G4G",
+      "address": "M 101.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01CR",
+      "address": "M 108.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01DG",
+      "address": "M 101.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01DR",
+      "address": "M 107.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01EG",
+      "address": "M 101.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01ER",
+      "address": "M 107.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G1G",
+      "address": "M 104.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G1R",
+      "address": "M 110.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G2G",
+      "address": "M 105.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G2R",
+      "address": "M 111.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G3G",
+      "address": "M 104.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G3R",
+      "address": "M 110.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G4G",
+      "address": "M 105.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH1G4R",
+      "address": "M 111.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH2G1G",
+      "address": "M 102.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH2G1R",
+      "address": "M 108.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW02BH2G2G",
+      "address": "M 103.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G2R",
+      "address": "M 106.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G3G",
+      "address": "M 104.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G3R",
+      "address": "M 110.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G4G",
+      "address": "M 105.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G4R",
+      "address": "M 111.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G1G",
+      "address": "M 103.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G1R",
+      "address": "M 109.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G2G",
+      "address": "M 103.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G2R",
+      "address": "M 109.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G3G",
+      "address": "M 103.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G3R",
+      "address": "M 109.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G4G",
+      "address": "M 102.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH2G4R",
+      "address": "M 108.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH3G2G",
+      "address": "M 102.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH3G2R",
+      "address": "M 108.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01CG",
+      "address": "M 102.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH2G1",
+      "address": "E 1.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH2G2",
+      "address": "E 1.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH2G3",
+      "address": "E 0.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01BH3G2",
+      "address": "E 0.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH2G5",
+      "address": "E 0.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH3G3",
+      "address": "E 1.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR03A",
+      "address": "E 2.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR03B",
+      "address": "E 2.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01K",
+      "address": "E 2.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR03BH1G3",
+      "address": "E 2.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR03BH1G4",
+      "address": "E 2.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR03D",
+      "address": "E 0.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR03E",
+      "address": "E 0.2",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G1G",
+      "address": "M 100.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G1R",
+      "address": "M 106.7",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xW01BH1G2G",
+      "address": "M 100.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "Speed3IU",
+      "address": "M 120.0",
+      "type": "BOOL",
+      "comment": "Volle Fahrt im Uhrzeigersinn",
+      "commentEn": "Full speed, clockwise"
+    },
+    {
+      "symbol": "Weichen",
+      "address": "FB 2",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "WeichenDB",
+      "address": "DB 2",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "WeichenStruct",
+      "address": "UDT 1",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "XW03CR",
+      "address": "M 109.7",
+      "type": "BOOL",
+      "note": "uppercase X exactly as in Variablenliste — case-sensitivity trap (Aufgabe B writes \"xW03CR\")"
+    },
+    {
+      "symbol": "XW05BH1G3R",
+      "address": "M 107.0",
+      "type": "BOOL",
+      "note": "uppercase X exactly as in Variablenliste — case-sensitivity trap"
+    },
+    {
+      "symbol": "xR01A",
+      "address": "E 1.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01B",
+      "address": "E 1.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01BH1G1",
+      "address": "E 1.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01BH1G3",
+      "address": "E 1.6",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01BH2G1",
+      "address": "E 0.4",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01BH2G2",
+      "address": "E 0.3",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01D",
+      "address": "E 2.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR01E",
+      "address": "E 2.1",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH1G1",
+      "address": "E 2.5",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "xR02BH1G2",
+      "address": "E 0.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "FCGR8",
+      "address": "FC 80",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "Fahrstrom",
+      "address": "AW 6",
+      "type": "WORD",
+      "commentEn": "Traction current word (only analog output)"
+    },
+    {
+      "symbol": "FahrstromDB",
+      "address": "DB 1",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FahrstromFB",
+      "address": "FB 1",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "NotausBit",
+      "address": "E 1.7",
+      "type": "BOOL",
+      "comment": "Notaus",
+      "commentEn": "Emergency stop (fail-safe: 0 = active)"
+    },
+    {
+      "symbol": "NotausNF",
+      "address": "M 121.0",
+      "type": "BOOL",
+      "commentEn": "Emergency-stop edge-memory operand (system)"
+    },
+    {
+      "symbol": "PROG_ERR",
+      "address": "OB 121",
+      "type": "BLOCK",
+      "comment": "Programming Error",
+      "commentEn": "Programming-error OB"
+    },
+    {
+      "symbol": "SOPD",
+      "address": "M 130.0",
+      "type": "BOOL"
+    },
+    {
+      "symbol": "SOPhase2",
+      "address": "MW 131",
+      "type": "WORD",
+      "note": "source defect W10: closing quote missing in Variablenliste — parsed tolerantly"
+    },
+    {
+      "symbol": "STOP",
+      "address": "M 120.3",
+      "type": "BOOL",
+      "comment": "Stillstand des Zuges",
+      "commentEn": "Train standstill"
+    },
+    {
+      "symbol": "Schaltzeit",
+      "address": "T 1",
+      "type": "TIMER",
+      "commentEn": "System timer of the 300 ms relay logic — not for students"
+    },
+    {
+      "symbol": "Speed1GU",
+      "address": "M 120.4",
+      "type": "BOOL",
+      "comment": "Bahnhofsfahrt gegen Uhrzeigersinn",
+      "commentEn": "Station speed, counter-clockwise"
+    },
+    {
+      "symbol": "Speed1IU",
+      "address": "M 120.2",
+      "type": "BOOL",
+      "comment": "Bahnhofsfahrt im Uhrzeigersinn",
+      "commentEn": "Station speed, clockwise"
+    },
+    {
+      "symbol": "Speed2GU",
+      "address": "M 120.5",
+      "type": "BOOL",
+      "comment": "Bahnhofseinfahrt gegen Uhrzeigersinn",
+      "commentEn": "Station approach speed, counter-clockwise"
+    },
+    {
+      "symbol": "Speed2IU",
+      "address": "M 120.1",
+      "type": "BOOL",
+      "comment": "Bahnhofseinfahrt im Uhrzeigersinn",
+      "commentEn": "Station approach speed, clockwise"
+    },
+    {
+      "symbol": "Speed3GU",
+      "address": "M 120.6",
+      "type": "BOOL",
+      "comment": "Volle Fahrt gegen Uhrzeigersinn",
+      "commentEn": "Full speed, counter-clockwise"
+    },
+    {
+      "symbol": "EvtTrigger",
+      "address": "FB 700",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR1",
+      "address": "FC 10",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR2",
+      "address": "FC 20",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR3",
+      "address": "FC 30",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR4",
+      "address": "FC 40",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR5",
+      "address": "FC 50",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR6",
+      "address": "FC 60",
+      "type": "BLOCK"
+    },
+    {
+      "symbol": "FCGR7",
+      "address": "FC 70",
+      "type": "BLOCK"
+    }
+  ]
+}

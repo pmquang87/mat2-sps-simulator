@@ -1,0 +1,214 @@
+/**
+ * TrackGraph (ARCHITECTURE.md §3, §5.3, §7.1): nodes/edges/adjacency of the trackplan,
+ * next-edge resolution through switches, validated on construction.
+ *
+ * Orientation convention (§7.1/§8 — DATA, not physics): every edge's from→to is the
+ * direction the documented IU route walks pass it. The reversing loop (See-Kehre) needs
+ * NO special handling here: the Train re-derives its per-edge travel sign from node
+ * continuity at every transition, so the sign flip around the loop is absorbed
+ * naturally. No global command↔geometry rule exists anywhere in this module.
+ */
+import { Polyline } from './geometry';
+import type { SwitchPosition } from './switches';
+import type {
+  ReedSpec,
+  SwitchSpec,
+  TrackEdgeSpec,
+  TrackNodeSpec,
+  TrackplanFile,
+  TrackplanMeta,
+  TrainStartSpec,
+} from './types';
+
+/** Result of resolving the continuation past a node. */
+export type NextEdgeResult =
+  | {
+      kind: 'edge';
+      edgeId: string;
+      /** Set when the node was a switch entered from a branch (trailing move). */
+      trailedSwitchId?: string;
+      /** True when the switch position did not match the branch being left (§5.3). */
+      trailedMismatch?: boolean;
+    }
+  | { kind: 'buffer'; nodeId: string };
+
+function fail(msg: string): never {
+  throw new Error(`trackplan: ${msg}`);
+}
+
+export class TrackGraph {
+  readonly meta: TrackplanMeta;
+  private readonly nodesById = new Map<string, TrackNodeSpec>();
+  private readonly edgesById = new Map<string, TrackEdgeSpec>();
+  private readonly polylines = new Map<string, Polyline>();
+  /** nodeId → incident edge ids, trackplan order (stable iteration, §6.3). */
+  private readonly incident = new Map<string, string[]>();
+  private readonly switchByNode = new Map<string, SwitchSpec>();
+  private readonly switchesById = new Map<string, SwitchSpec>();
+  private readonly switchList: readonly SwitchSpec[];
+  private readonly reedList: readonly ReedSpec[];
+  private readonly startSpec: TrainStartSpec;
+
+  constructor(plan: TrackplanFile) {
+    this.meta = { ...plan.meta, speedsMmS: { ...plan.meta.speedsMmS } };
+
+    for (const n of plan.nodes) {
+      if (this.nodesById.has(n.id)) fail(`duplicate node id "${n.id}"`);
+      this.nodesById.set(n.id, n);
+      this.incident.set(n.id, []);
+    }
+    for (const e of plan.edges) {
+      if (this.edgesById.has(e.id)) fail(`duplicate edge id "${e.id}"`);
+      if (!this.nodesById.has(e.from)) fail(`edge "${e.id}" references unknown node "${e.from}"`);
+      if (!this.nodesById.has(e.to)) fail(`edge "${e.id}" references unknown node "${e.to}"`);
+      this.edgesById.set(e.id, e);
+      this.polylines.set(e.id, new Polyline(e.pts, plan.meta.mmPerUnit));
+      (this.incident.get(e.from) as string[]).push(e.id);
+      (this.incident.get(e.to) as string[]).push(e.id);
+    }
+
+    // Node arity: buffer = 1, plain = 2 (dead ends must be buffers), switch = 3.
+    for (const n of plan.nodes) {
+      const deg = (this.incident.get(n.id) as string[]).length;
+      const want = n.kind === 'buffer' ? 1 : n.kind === 'plain' ? 2 : 3;
+      if (deg !== want) {
+        fail(`${n.kind} node "${n.id}" has ${deg} incident edges, expected ${want}`);
+      }
+    }
+
+    for (const sw of plan.switches) {
+      if (this.switchesById.has(sw.id)) fail(`duplicate switch id "${sw.id}"`);
+      const node = this.nodesById.get(sw.nodeId);
+      if (!node) fail(`switch "${sw.id}" references unknown node "${sw.nodeId}"`);
+      if (node.kind !== 'switch') fail(`switch "${sw.id}" node "${sw.nodeId}" is kind "${node.kind}"`);
+      if (this.switchByNode.has(sw.nodeId)) fail(`node "${sw.nodeId}" has more than one switch`);
+      const [b0, b1] = sw.branchEdgeIds;
+      if (sw.toeEdgeId === b0 || sw.toeEdgeId === b1 || b0 === b1) {
+        fail(`switch "${sw.id}" toe/branch edges are not distinct`);
+      }
+      const inc = this.incident.get(sw.nodeId) as string[];
+      for (const eid of [sw.toeEdgeId, b0, b1]) {
+        if (!this.edgesById.has(eid)) fail(`switch "${sw.id}" references unknown edge "${eid}"`);
+        if (!inc.includes(eid)) fail(`switch "${sw.id}" edge "${eid}" is not incident to node "${sw.nodeId}"`);
+      }
+      this.switchesById.set(sw.id, sw);
+      this.switchByNode.set(sw.nodeId, sw);
+    }
+    for (const n of plan.nodes) {
+      if (n.kind === 'switch' && !this.switchByNode.has(n.id)) {
+        fail(`switch node "${n.id}" has no switch spec`);
+      }
+    }
+
+    const reedIds = new Set<string>();
+    for (const r of plan.reeds) {
+      if (reedIds.has(r.id)) fail(`duplicate reed id "${r.id}"`);
+      reedIds.add(r.id);
+      const poly = this.polylines.get(r.edgeId);
+      if (!poly) fail(`reed "${r.id}" references unknown edge "${r.edgeId}"`);
+      if (r.offsetMm < 0 || r.offsetMm > poly.lengthMm) {
+        fail(`reed "${r.id}" offset ${r.offsetMm} mm outside edge "${r.edgeId}" (0..${poly.lengthMm} mm)`);
+      }
+    }
+
+    const startPoly = this.polylines.get(plan.start.edgeId);
+    if (!startPoly) fail(`start references unknown edge "${plan.start.edgeId}"`);
+    if (plan.start.offsetMm < 0 || plan.start.offsetMm > startPoly.lengthMm) {
+      fail(`start offset ${plan.start.offsetMm} mm outside edge "${plan.start.edgeId}"`);
+    }
+
+    this.switchList = [...plan.switches];
+    this.reedList = [...plan.reeds];
+    this.startSpec = { ...plan.start };
+  }
+
+  node(id: string): TrackNodeSpec {
+    const n = this.nodesById.get(id);
+    if (!n) fail(`unknown node "${id}"`);
+    return n;
+  }
+
+  edge(id: string): TrackEdgeSpec {
+    const e = this.edgesById.get(id);
+    if (!e) fail(`unknown edge "${id}"`);
+    return e;
+  }
+
+  polyline(edgeId: string): Polyline {
+    const p = this.polylines.get(edgeId);
+    if (!p) fail(`unknown edge "${edgeId}"`);
+    return p;
+  }
+
+  edgeLengthMm(edgeId: string): number {
+    return this.polyline(edgeId).lengthMm;
+  }
+
+  edgesAtNode(nodeId: string): readonly string[] {
+    const inc = this.incident.get(nodeId);
+    if (!inc) fail(`unknown node "${nodeId}"`);
+    return inc;
+  }
+
+  switchAtNode(nodeId: string): SwitchSpec | undefined {
+    return this.switchByNode.get(nodeId);
+  }
+
+  switchById(id: string): SwitchSpec | undefined {
+    return this.switchesById.get(id);
+  }
+
+  /** Switch specs, trackplan order (stable, §6.3). */
+  get switches(): readonly SwitchSpec[] {
+    return this.switchList;
+  }
+
+  /** Reed specs, trackplan order (stable, §6.3). */
+  get reeds(): readonly ReedSpec[] {
+    return this.reedList;
+  }
+
+  get start(): TrainStartSpec {
+    return this.startSpec;
+  }
+
+  /**
+   * Continuation past `viaNodeId` when leaving `fromEdgeId` (§5.3 train motion rules):
+   * plain → the unique other edge; switch from toe side → current position's branch;
+   * switch from branch side → toe edge (trailing, mismatch flagged); buffer → buffer.
+   */
+  nextEdge(
+    fromEdgeId: string,
+    viaNodeId: string,
+    positionOf: (switchId: string) => SwitchPosition,
+  ): NextEdgeResult {
+    const node = this.node(viaNodeId);
+    const edge = this.edge(fromEdgeId);
+    if (edge.from !== viaNodeId && edge.to !== viaNodeId) {
+      fail(`edge "${fromEdgeId}" is not incident to node "${viaNodeId}"`);
+    }
+    if (node.kind === 'buffer') {
+      return { kind: 'buffer', nodeId: viaNodeId };
+    }
+    if (node.kind === 'plain') {
+      const other = (this.incident.get(viaNodeId) as string[]).find((id) => id !== fromEdgeId);
+      /* c8 ignore next — plain arity 2 is validated in the constructor */
+      if (!other) fail(`plain node "${viaNodeId}" has no continuation`);
+      return { kind: 'edge', edgeId: other };
+    }
+    const sw = this.switchByNode.get(viaNodeId) as SwitchSpec; // validated: every switch node has one
+    if (fromEdgeId === sw.toeEdgeId) {
+      return { kind: 'edge', edgeId: sw.branchEdgeIds[positionOf(sw.id)] };
+    }
+    const idx = sw.branchEdgeIds.indexOf(fromEdgeId);
+    /* c8 ignore next — incident set == {toe, b0, b1} is validated in the constructor */
+    if (idx !== 0 && idx !== 1) fail(`edge "${fromEdgeId}" is neither toe nor branch of switch "${sw.id}"`);
+    const branch = idx as SwitchPosition;
+    return {
+      kind: 'edge',
+      edgeId: sw.toeEdgeId,
+      trailedSwitchId: sw.id,
+      trailedMismatch: positionOf(sw.id) !== branch,
+    };
+  }
+}

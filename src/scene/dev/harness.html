@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>scene harness (dev only)</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #101214;
+        color: #e8e8e4;
+        font: 12px/1.5 "Segoe UI", system-ui, sans-serif;
+      }
+      #view {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #hud,
+      #keys {
+        position: fixed;
+        left: 10px;
+        padding: 6px 10px;
+        border-radius: 4px;
+        background: rgba(16, 18, 20, 0.72);
+        pointer-events: none;
+        white-space: pre;
+      }
+      #hud {
+        top: 10px;
+      }
+      #keys {
+        bottom: 10px;
+        opacity: 0.75;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud"></div>
+    <div id="keys">1 orbit · 2 bird · 3 cab · 4 trackside · L labels · P pause · R reset · H highlight · Q quality · +/- speed</div>
+    <script type="module" src="./harness.ts"></script>
+  </body>
+</html>
