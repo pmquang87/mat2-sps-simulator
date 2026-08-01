@@ -13,7 +13,8 @@ import { TimerBank } from './timers';
 import { CounterBank } from './counters';
 import { createExecState, runScan } from './exec';
 import type { ExecState } from './exec';
-import { parseProgram } from './parser';
+import { RAILWAY_RESOURCE_POLICY, parseProgram } from './parser';
+import type { ResourcePolicy } from './parser';
 
 export interface LoadResult { ok: boolean; diagnostics: Diagnostic[]; program?: Program; }
 
@@ -32,6 +33,8 @@ export interface ScanResult { cycle: number; diagnostics: Diagnostic[]; trace?: 
 
 export class Emulator {
   private readonly symbols: SymbolTable;
+  /** Which write targets the plant's course rules allow (W-RES-001); railway by default. */
+  private readonly resourcePolicy: ResourcePolicy;
   readonly memory: MemoryAreas = new MemoryAreas();
   private readonly timers = new TimerBank();
   private readonly counters = new CounterBank();
@@ -39,13 +42,14 @@ export class Emulator {
   private program: Program | null = null;
   private cycles = 0;
 
-  constructor(symbols: SymbolTable) {
+  constructor(symbols: SymbolTable, resourcePolicy: ResourcePolicy = RAILWAY_RESOURCE_POLICY) {
     this.symbols = symbols;
+    this.resourcePolicy = resourcePolicy;
   }
 
   /** Parse + static checks. On error keeps the previously loaded program (if any). */
   load(source: string): LoadResult {
-    const res = parseProgram(source, this.symbols);
+    const res = parseProgram(source, this.symbols, this.resourcePolicy);
     if (res.program) {
       this.program = res.program;
       return { ok: true, diagnostics: res.diagnostics, program: res.program };

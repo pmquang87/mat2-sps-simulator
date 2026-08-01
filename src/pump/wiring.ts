@@ -8,7 +8,7 @@
  * at startup instead of silently rewiring the teaching example.
  */
 import { bitAddressEquals, formatAddress, parseAddress } from '../core';
-import type { Address, BitAddress, BlockRef, Program, SymbolTable } from '../core';
+import type { Address, BitAddress, BlockRef, Program, ResourcePolicy, SymbolTable } from '../core';
 import { PUMP_ACTUATOR_IDS, PUMP_BUTTON_IDS, PUMP_SENSOR_IDS, PUMP_TOGGLE_IDS } from './types';
 import type { PumpActuatorId, PumpButtonId, PumpSensorId, PumpToggleId } from './types';
 import { PUMP_SYMBOL_NAMES } from './variables';
@@ -174,3 +174,28 @@ function sortUnique(addresses: readonly BitAddress[]): BitAddress[] {
   }
   return [...seen.keys()].sort((a, b) => a - b).map((key) => seen.get(key) as BitAddress);
 }
+
+/**
+ * The pump manual's own resource rules (W-RES-001 policy). Unlike the railway, the
+ * Anleitung's pump snippets THEMSELVES write outside the railway student area: `= A 0.1`
+ * is the pump (IV.2.5.3ff), `S M 0.0` the latch flag, `SI T 1` the first timer. What the
+ * manual demonstrates cannot be warned about on the plant it was written for:
+ *   A 0.x  - the output byte carrying pump + lamps (unwired bits drive nothing, no warn);
+ *   M 0 - M 20 - flags, covering the manual's M 0.0 and the shared student area;
+ *   T 1 - T 20, Z 1 - Z 10 - the manual's low timer/counter numbers plus the student band;
+ *   MW 0 - MW 18 - word transfers inside the same flag band (IV.2.4 uses MD 5.0).
+ * AW/EW writes and everything else still warn - the pump has no Fahrstrom word.
+ */
+export const PUMP_RESOURCE_POLICY: ResourcePolicy = {
+  bit(a: { area: string; byte: number; bit: number }): boolean {
+    if (a.area === 'A') return a.byte === 0;
+    if (a.area !== 'M') return false;
+    if (a.byte <= 19) return true;
+    return a.byte === 20 && a.bit === 0;
+  },
+  timer(n: number): boolean { return n >= 1 && n <= 20; },
+  counter(n: number): boolean { return n >= 1 && n <= 10; },
+  word(area: string, byte: number): boolean {
+    return area === 'MW' && byte <= 18;
+  },
+};
