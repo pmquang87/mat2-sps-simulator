@@ -12,7 +12,7 @@ import { PumpPlant } from './model';
 import type { PumpParams } from './params';
 import { PumpEventBus } from './types';
 import { buildPumpSymbols } from './variables';
-import { buildPumpWiring } from './wiring';
+import { PUMP_RESOURCE_POLICY, buildPumpWiring } from './wiring';
 import type { PumpWiring } from './wiring';
 
 export interface PumpStackConfig extends PumpCoordinatorConfig {
@@ -32,7 +32,7 @@ export interface PumpStack {
 export function createPumpStack(cfg: PumpStackConfig = {}): PumpStack {
   const symbols = buildPumpSymbols();
   const wiring = buildPumpWiring(symbols);          // validates against the Anleitung map
-  const emulator = new Emulator(symbols);
+  const emulator = new Emulator(symbols, PUMP_RESOURCE_POLICY);
   const plantCfg = cfg.params === undefined ? {} : { params: cfg.params };
   const plant = new PumpPlant(plantCfg);
   const bus = new PumpEventBus();

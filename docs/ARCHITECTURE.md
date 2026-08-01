@@ -551,6 +551,14 @@ Warn ONLY on writes outside this list: any `E` address, any other `M` byte (e.g.
 coils, `S`/`R` on M 120.x, `FP M 121.0`) must produce **zero** W-RES-001 warnings —
 pinned by a dedicated test case in `parser.test.ts` (§9.1).
 
+The whitelist above is the RAILWAY's — it is course content, not emulator semantics, so it
+lives in a `ResourcePolicy` handed to the `Emulator` (railway = default). The pump
+experiment (§13) supplies `PUMP_RESOURCE_POLICY` (`src/pump/wiring.ts`): the Anleitung's
+own pump snippets write `A 0.1`, `M 0.0` and `T 1`, and what the manual demonstrates
+cannot warn on the plant it was written for (user report 2026-08-01; pinned by
+`tests/pump/resourcePolicy.test.ts` — every pump-visible example loads warning-free, the
+railway default still warns for the same operands).
+
 #### 5.1.6 Memory / process image (`core/memory.ts`)
 
 ```ts

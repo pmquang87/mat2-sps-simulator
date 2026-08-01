@@ -52,7 +52,11 @@ const OPERAND_KINDS: Record<Mnemonic, readonly Operand['kind'][]> = {
 
 interface PendingLabel { name: string; line: number; col: number; length: number; }
 
-export function parseProgram(source: string, symbols: SymbolTable): ParseResult {
+export function parseProgram(
+  source: string,
+  symbols: SymbolTable,
+  policy: ResourcePolicy = RAILWAY_RESOURCE_POLICY,
+): ParseResult {
   const { tokens, diagnostics } = tokenize(source);
 
   // ── group by line (comments handled separately for network markers) ────────
@@ -151,7 +155,7 @@ export function parseProgram(source: string, symbols: SymbolTable): ParseResult 
     }
   }
 
-  runStaticWarnings(instructions, operandPos, diagnostics);
+  runStaticWarnings(instructions, operandPos, diagnostics, policy);
 
   const hasError = diagnostics.some((d) => d.severity === 'error');
   if (hasError) return { program: null, diagnostics };
@@ -356,6 +360,7 @@ function runStaticWarnings(
   instructions: Instruction[],
   operandPos: ({ line: number; col: number; length: number } | null)[],
   diagnostics: Diagnostic[],
+  policy: ResourcePolicy,
 ): void {
   let vkeEverSet = false;
   let s5LoadedInString = false;
@@ -376,7 +381,7 @@ function runStaticWarnings(
       diagnostics.push(makeDiagnostic('W-TIM-001', { line: instr.line, col: instr.col }));
     }
 
-    checkResourceWhitelist(instr, pos, diagnostics);
+    checkResourceWhitelist(instr, pos, diagnostics, policy);
 
     if (VKE_SETTING_OPS.has(instr.op)) vkeEverSet = true;
     if (STRING_END_OPS.has(instr.op)) s5LoadedInString = false;
@@ -394,6 +399,7 @@ function checkResourceWhitelist(
   instr: Instruction,
   pos: { line: number; col: number; length?: number },
   diagnostics: Diagnostic[],
+  policy: ResourcePolicy,
 ): void {
   const operand = instr.operand;
   if (!operand) return;
@@ -404,20 +410,20 @@ function checkResourceWhitelist(
 
   switch (instr.op) {
     case '=': case 'S': case 'R': case 'FP': case 'FN':
-      if (operand.kind === 'bit' && !isWhitelistedBit(operand.address)) {
+      if (operand.kind === 'bit' && !policy.bit(operand.address)) {
         warn(formatAddress(operand.address));
       }
-      if (operand.kind === 'timer' && !isWhitelistedTimer(operand.n)) warn(`T ${operand.n}`);
-      if (operand.kind === 'counter' && !isWhitelistedCounter(operand.n)) warn(`Z ${operand.n}`);
+      if (operand.kind === 'timer' && !policy.timer(operand.n)) warn(`T ${operand.n}`);
+      if (operand.kind === 'counter' && !policy.counter(operand.n)) warn(`Z ${operand.n}`);
       return;
     case 'SI': case 'SV': case 'SE': case 'SS': case 'SA':
-      if (operand.kind === 'timer' && !isWhitelistedTimer(operand.n)) warn(`T ${operand.n}`);
+      if (operand.kind === 'timer' && !policy.timer(operand.n)) warn(`T ${operand.n}`);
       return;
     case 'ZV': case 'ZR':
-      if (operand.kind === 'counter' && !isWhitelistedCounter(operand.n)) warn(`Z ${operand.n}`);
+      if (operand.kind === 'counter' && !policy.counter(operand.n)) warn(`Z ${operand.n}`);
       return;
     case 'T':
-      if (operand.kind === 'word' && !isWhitelistedWord(operand.address.area, operand.address.byte)) {
+      if (operand.kind === 'word' && !policy.word(operand.address.area, operand.address.byte)) {
         warn(formatAddress(operand.address));
       }
       return;
@@ -426,20 +432,34 @@ function checkResourceWhitelist(
   }
 }
 
-function isWhitelistedBit(a: { area: string; byte: number; bit: number }): boolean {
-  if (a.area !== 'M') return false;
-  if (a.byte >= 10 && a.byte <= 19) return true;          // M 10.0 – M 19.7
-  if (a.byte === 20 && a.bit === 0) return true;          // … up to M 20.0
-  if (a.byte >= 100 && a.byte <= 111) return true;        // switch coils
-  if (a.byte === 120 && a.bit <= 6) return true;          // speeds + STOP
-  if (a.byte === 121 && a.bit === 0) return true;         // NotausNF edge operand
-  return false;
+/**
+ * Which write targets a plant's course rules allow (W-RES-001 is a warning against THIS).
+ * The rules are course content, not emulator semantics: the railway practicum confines
+ * students to its student area, while the pump manual itself writes `A 0.1` and `M 0.0` —
+ * so each experiment hands its policy to the `Emulator`; the railway one is the default.
+ */
+export interface ResourcePolicy {
+  bit(a: { area: string; byte: number; bit: number }): boolean;
+  timer(n: number): boolean;
+  counter(n: number): boolean;
+  word(area: string, byte: number): boolean;
 }
 
-function isWhitelistedTimer(n: number): boolean { return n >= 10 && n <= 20; }
-function isWhitelistedCounter(n: number): boolean { return n === 1; }
-
-/** Word writes: both bytes must stay inside the student Merker area (M 10 … M 19). */
-function isWhitelistedWord(area: string, byte: number): boolean {
-  return area === 'MW' && byte >= 10 && byte <= 18;
-}
+/** The railway practicum's rules (Hinweise V.3 + the plant symbols of §7.2). */
+export const RAILWAY_RESOURCE_POLICY: ResourcePolicy = {
+  bit(a: { area: string; byte: number; bit: number }): boolean {
+    if (a.area !== 'M') return false;
+    if (a.byte >= 10 && a.byte <= 19) return true;        // M 10.0 – M 19.7
+    if (a.byte === 20 && a.bit === 0) return true;        // … up to M 20.0
+    if (a.byte >= 100 && a.byte <= 111) return true;      // switch coils
+    if (a.byte === 120 && a.bit <= 6) return true;        // speeds + STOP
+    if (a.byte === 121 && a.bit === 0) return true;       // NotausNF edge operand
+    return false;
+  },
+  timer(n: number): boolean { return n >= 10 && n <= 20; },
+  counter(n: number): boolean { return n === 1; },
+  /** Word writes: both bytes must stay inside the student Merker area (M 10 … M 19). */
+  word(area: string, byte: number): boolean {
+    return area === 'MW' && byte >= 10 && byte <= 18;
+  },
+};
