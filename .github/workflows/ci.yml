@@ -1,0 +1,46 @@
+# CI for the public repository (github.com/pmquang87/mat2-sps-simulator).
+#
+# The public checkout has no reference/ folder (course files and the solution oracles are
+# local-only on the authoring machine), so the oracle and course-file suites skip BY DESIGN
+# — a fresh clone runs all four gates green, it just proves less (README "Solutions
+# policy"). That makes plain green meaningless without a count pin: after each run,
+# tools/ci-assert-suites.mjs asserts the executed-suite counts are in the expected range,
+# so a regression that silently mass-skips suites fails the workflow instead of passing it.
+# (CI=true makes vitest write test-results.json — see vitest.config.ts.)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gates:
+    name: gates (typecheck, lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # matches the documented dev environment (README "Development")
+          cache: npm
+      - run: npm ci
+      - run: npm run gates
+      - run: node tools/ci-assert-suites.mjs
+
+  release-check:
+    name: release-check (build + suite with MAT2SPS_REQUIRE_DIST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Builds dist/ first, then tools/release-check.mjs itself sets MAT2SPS_REQUIRE_DIST=1
+      # for the suite run — the no-bundle guard then treats a missing or unscanned dist/ as
+      # a FAILURE, so the solution-leak scan can never pass vacuously.
+      - run: npm run release-check
+      - run: node tools/ci-assert-suites.mjs

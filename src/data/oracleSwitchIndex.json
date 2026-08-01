@@ -1,0 +1,601 @@
+{
+  "version": 1,
+  "generatedFrom": "tests/oracle/expectations",
+  "switches": {
+    "xW01BH1G1": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH1G1",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR01BH1G1",
+            "closure": 2,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH1G1",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW01BH1G2": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03BH1G3",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW01BH2G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH2G3",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR02BH2G3",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW01BH2G3": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH2G3",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR02BH2G3",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW01D": {
+      "gruppeA": {
+        "trailed": {
+          "count": 2
+        },
+        "pulses": [
+          {
+            "afterReed": "xR03D",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR01D",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR03D",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW02BH1G1": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH1G1",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR01BH1G1",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH1G1",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR03A",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW02BH1G2": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03A",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02BH1G3": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03A",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02BH1G4": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03BH1G4",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02BH2G1": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01A",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR01A",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02BH2G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH2G3",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR02BH2G3",
+            "closure": 2,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02BH2G3": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01A",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR01A",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02BH3G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01K",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW02C": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01K",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW02D": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR03D",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR01D",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR03D",
+            "closure": 2,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW03BH1G2": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03A",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR03BH1G3",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW03BH1G3": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03A",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW03BH1G4": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH3G3",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR01D",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW03BH2G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01A",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR01A",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW03BH2G3": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01A",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR01A",
+            "closure": 2,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW03BH3G2": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01K",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW03C": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03BH1G4",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR01K",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW03D": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR03D",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR03D",
+            "closure": 2,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW04BH1G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH3G3",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW04BH2G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR01A",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR01A",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW04C": {
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03BH1G4",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR01K",
+            "closure": 1,
+            "coil": "R"
+          }
+        ]
+      }
+    },
+    "xW04D": {
+      "gruppeA": {
+        "trailed": {
+          "count": 2
+        },
+        "pulses": [
+          {
+            "afterReed": "xR03D",
+            "closure": 1,
+            "coil": "R"
+          },
+          {
+            "afterReed": "xR03D",
+            "closure": 2,
+            "coil": "R"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW05BH1G2": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH3G3",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW05BH1G3": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR02BH3G3",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR01BH3G2",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    },
+    "xW05D": {
+      "gruppeA": {
+        "pulses": [
+          {
+            "afterReed": "xR03D",
+            "closure": 1,
+            "coil": "G"
+          },
+          {
+            "afterReed": "xR03D",
+            "closure": 2,
+            "coil": "G"
+          }
+        ]
+      },
+      "gruppeB": {
+        "pulses": [
+          {
+            "afterReed": "xR03B",
+            "closure": 1,
+            "coil": "G"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -246,4 +246,20 @@ export const en = {
   'examples.copy': 'Copy',
   'examples.copyTitle': 'Copy the snippet to the clipboard',
   'examples.confirmReplace': 'Replace the current editor content with this example? Your current program will be overwritten (it stays in the browser’s undo history, Ctrl+Z).',
+
+  // ── scene editor (owner tool, DESIGN_SCENE_EDITOR.md — activated via ?editor=1) ──
+  'editor3d.title': 'Scene editor',
+  'editor3d.hint': 'Click a switch in the 3D view to select it.',
+  'editor3d.none': 'No switch selected.',
+  'editor3d.source': 'Mapping source: {source}',
+  'editor3d.mapping': 'G → {g}, R → {r}',
+  'editor3d.fixed': 'This switch has no coils (fixed) — nothing to flip.',
+  'editor3d.flip': 'Flip G/R mapping',
+  'editor3d.flipTitle': 'Swap which branch the G and R coils throw to — in the draft only',
+  'editor3d.noFlips': 'No flips yet.',
+  'editor3d.flipped': 'Flipped: {list}',
+  'editor3d.downloadPlan': 'Download patched trackplan.json',
+  'editor3d.downloadPlanTitle': 'Full drop-in replacement for src/data/trackplan.json — review and commit it together with the expectation note',
+  'editor3d.downloadNote': 'Download expectation note',
+  'editor3d.downloadNoteTitle': 'Which pinned oracle-expectation entries each flip would move (double-edit discipline)',
 } as const;

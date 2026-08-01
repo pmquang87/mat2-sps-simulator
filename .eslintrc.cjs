@@ -20,25 +20,32 @@ module.exports = {
   rules: {
     // §2 rule 7: no deep imports into other modules — import the module index instead.
     //
-    // MEASURED CAVEAT (do not assume this block is enforcing anything): ESLint 8 matches
-    // `no-restricted-imports` patterns with the `ignore` package, which does NOT understand
-    // the extglob `!(index)`. A probe file importing `./pump/model` and `./scene/labels` was
-    // reported clean, while a plain `../scene` in the same run was flagged — so the linter is
-    // alive and the `!(index)` form specifically matches nothing. The `pump` entry was
-    // removed rather than left as decoration; the rest are pre-existing and are recorded as an
-    // open item in docs/HANDOFF.md. Until they are replaced, §2 rule 7 is a review rule.
+    // Pattern form, MEASURED (2026-08-01, pinned by tests/tools/eslintBoundaries.test.ts):
+    // ESLint 8 matches `no-restricted-imports` patterns with the `ignore` package, which
+    // does NOT understand the extglob `!(index)` — that form matched nothing for a year.
+    // The gitignore-style `**/<module>/**` DOES fire: it bans every specifier that reaches
+    // INSIDE the module directory (`../scene/labels`, `./ui/panels/WatchPanel`) while the
+    // bare index specifier (`../scene`) stays clean — which is exactly rule 7. The probe
+    // suite lints virtual files in both directions per module, so if this block ever goes
+    // dead again a gate fails instead of a comment lying.
+    //
+    // Override mechanics, load-bearing: an ESLint override REPLACES this rule's options for
+    // its files instead of merging, so each per-module override below carries its own
+    // deep-ban patterns for the modules it is ALLOWED to import (e.g. plant/ may import
+    // core/'s index, so its override adds '**/core/**').
     'no-restricted-imports': [
       'error',
       {
         patterns: [
           {
             group: [
-              '**/core/!(index)',
-              '**/plant/!(index)',
-              '**/scene/!(index)',
-              '**/ui/!(index)',
-              '**/app/!(index)',
-              '**/pedagogy/!(index)',
+              '**/core/**',
+              '**/plant/**',
+              '**/scene/**',
+              '**/ui/**',
+              '**/app/**',
+              '**/pedagogy/**',
+              '**/pump/**',
             ],
             message:
               'Deep imports are forbidden (ARCHITECTURE.md §2 rule 7) — import from the module index.ts.',
@@ -76,7 +83,7 @@ module.exports = {
       },
     },
     {
-      // §2 rule 2: plant/ imports only core/ types.
+      // §2 rule 2: plant/ imports only core/ types — and only through core's index (rule 7).
       files: ['src/plant/**/*.ts'],
       rules: {
         'no-restricted-imports': [
@@ -87,13 +94,17 @@ module.exports = {
                 group: ['**/scene', '**/scene/**', '**/ui', '**/ui/**', '**/app', '**/app/**', '**/pedagogy', '**/pedagogy/**', '**/data', '**/data/**', '**/pump', '**/pump/**'],
                 message: 'plant/ imports only core/ types (ARCHITECTURE.md §2 rule 2).',
               },
+              {
+                group: ['**/core/**'],
+                message: 'Deep imports are forbidden (ARCHITECTURE.md §2 rule 7) — import from the module index.ts.',
+              },
             ],
           },
         ],
       },
     },
     {
-      // §2 rule 3: scene/ imports plant/ types only.
+      // §2 rule 3: scene/ imports plant/ types only — and only through plant's index (rule 7).
       files: ['src/scene/**/*.ts'],
       rules: {
         'no-restricted-imports': [
@@ -104,13 +115,18 @@ module.exports = {
                 group: ['**/core', '**/core/**', '**/ui', '**/ui/**', '**/app', '**/app/**', '**/pedagogy', '**/pedagogy/**', '**/data', '**/data/**', '**/pump', '**/pump/**'],
                 message: 'scene/ imports plant/ types only (ARCHITECTURE.md §2 rule 3).',
               },
+              {
+                group: ['**/plant/**'],
+                message: 'Deep imports are forbidden (ARCHITECTURE.md §2 rule 7) — import from the module index.ts.',
+              },
             ],
           },
         ],
       },
     },
     {
-      // §2 rule 5: pedagogy/ imports core/ + plant/ types and the SimEvent union — no DOM.
+      // §2 rule 5: pedagogy/ imports core/ + plant/ types and the SimEvent union — no DOM,
+      // and both only through their indexes (rule 7).
       files: ['src/pedagogy/**/*.ts'],
       rules: {
         'no-restricted-imports': [
@@ -120,6 +136,10 @@ module.exports = {
               {
                 group: ['**/scene', '**/scene/**', '**/ui', '**/ui/**', '**/app', '**/app/**', '**/data', '**/data/**', '**/pump', '**/pump/**'],
                 message: 'pedagogy/ imports core/ + plant/ types only (ARCHITECTURE.md §2 rule 5).',
+              },
+              {
+                group: ['**/core/**', '**/plant/**'],
+                message: 'Deep imports are forbidden (ARCHITECTURE.md §2 rule 7) — import from the module index.ts.',
               },
             ],
           },
@@ -139,6 +159,10 @@ module.exports = {
               {
                 group: ['**/plant', '**/plant/**', '**/scene', '**/scene/**', '**/ui', '**/ui/**', '**/app', '**/app/**', '**/pedagogy', '**/pedagogy/**', '**/data', '**/data/**'],
                 message: 'pump/ imports core/ only — the two experiments stay independent.',
+              },
+              {
+                group: ['**/core/**'],
+                message: 'Deep imports are forbidden (ARCHITECTURE.md §2 rule 7) — import from the module index.ts.',
               },
             ],
           },
@@ -160,6 +184,13 @@ module.exports = {
                 group: ['**/plant', '**/plant/**', '../scene', '../scene/**', '**/ui', '**/ui/**', '**/app', '**/app/**', '**/pedagogy', '**/pedagogy/**', '**/data', '**/data/**'],
                 message: 'pump/ imports core/ only — the two experiments stay independent.',
               },
+              {
+                // '**/scene/**' (not './scene/**' — the ignore package has no notion of a
+                // './' prefix) bans reaching INSIDE any scene directory, own or railway,
+                // while the bare './scene' re-export above stays legal.
+                group: ['**/core/**', '**/scene/**'],
+                message: 'Deep imports are forbidden (ARCHITECTURE.md §2 rule 7) — import from the module index.ts.',
+              },
             ],
           },
         ],
@@ -179,8 +210,8 @@ module.exports = {
             patterns: [
               {
                 group: [
-                  '**/core/!(index)',
-                  '**/scene/!(index)',
+                  '**/core/**',
+                  '**/scene/**',
                   '**/plant',
                   '**/plant/**',
                   '**/ui',

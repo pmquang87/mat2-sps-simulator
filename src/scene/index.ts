@@ -69,6 +69,12 @@ export {
   type SwitchVisual,
 } from './switchMesh';
 export { buildReedVisuals, type ReedVisual } from './reedMesh';
+export {
+  SWITCH_PICK_PREFIX,
+  pickSwitchIn,
+  switchIdOfObject,
+  type NdcPoint,
+} from './picking';
 export { TrainVisual, buildTrain, type TrainUpdate, type ConsistWorldPath } from './trainMesh';
 export {
   BOARD_MARGIN_PT,

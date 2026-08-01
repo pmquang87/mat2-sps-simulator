@@ -20,6 +20,8 @@ rendered in simulation time.
 
 ![The pump experiment mid-transfer: the manual's S/R example running, tank A draining into tank B](docs/media/pump-simulator.png)
 
+![The model railway mid-lap: a two-line starter program releases the emergency stop and sets Speed2IU, the loco doing clockwise laps](docs/media/railway-simulator.png)
+
 **▶ How-to video (3:45, both experiments):**
 [howto-mat2-sps.mp4](https://github.com/pmquang87/mat2-sps-simulator/releases/download/v0.2.0/howto-mat2-sps.mp4)
 — loading an example, running it, the start-track chooser, cameras, input forcing and the

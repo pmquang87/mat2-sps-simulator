@@ -49,6 +49,7 @@ import {
   type LandscapeResult,
 } from './landscape';
 import { createCameraRigs, type CameraMode, type CameraRigs } from './cameras';
+import { pickSwitchIn } from './picking';
 
 export interface SceneConfig {
   canvas: HTMLCanvasElement;
@@ -208,6 +209,13 @@ export class SceneManager {
 
   setLabelsVisible(v: boolean): void {                    // white xW…/xR… label sprites
     this.labels.setVisible(v);
+  }
+
+  /** Switch under a canvas point in NDC (−1…1), through the ACTIVE camera; null = miss.
+   *  Scene-editor picking (docs/DESIGN_SCENE_EDITOR.md §14.3) — pure geometry, no DOM. */
+  pickSwitchAt(at: { x: number; y: number }): string | null {
+    if (this.disposed) return null;
+    return pickSwitchIn(this.scene, this.cameras.active(), at);
   }
 
   highlight(kind: 'switch' | 'reed', id: string | null): void {   // UI hover/selection glow

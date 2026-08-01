@@ -316,10 +316,13 @@ export class WatchPanel {
       element.addEventListener('pointerleave', () => hover(null));
     }
 
+    // Byte rows display as "MB 10", but the S7-canonical spelling students type is
+    // "M 10" (the byte behind "U M 10.0") — index both, so the filter finds them either way.
+    const byteAlias = spec.kind === 'byteBits' ? ` ${spec.area} ${spec.byte}` : '';
     return {
       spec,
       element,
-      searchText: `${name} ${address}`.toLowerCase(),
+      searchText: `${name} ${address}${byteAlias}`.toLowerCase(),
       valueNode,
       bitNodes,
     };

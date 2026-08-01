@@ -248,4 +248,20 @@ export const de: Record<MsgKey, string> = {
   'examples.copy': 'Kopieren',
   'examples.copyTitle': 'Beispiel in die Zwischenablage kopieren',
   'examples.confirmReplace': 'Aktuellen Editorinhalt durch dieses Beispiel ersetzen? Das aktuelle Programm wird überschrieben (bleibt aber im Undo-Verlauf, Strg+Z).',
+
+  // ── Szeneneditor (Betreiber-Werkzeug, DESIGN_SCENE_EDITOR.md — Aufruf mit ?editor=1) ──
+  'editor3d.title': 'Szeneneditor',
+  'editor3d.hint': 'Weiche in der 3D-Ansicht anklicken, um sie auszuwählen.',
+  'editor3d.none': 'Keine Weiche ausgewählt.',
+  'editor3d.source': 'Zuordnungsquelle: {source}',
+  'editor3d.mapping': 'G → {g}, R → {r}',
+  'editor3d.fixed': 'Diese Weiche hat keine Spulen (fest liegend) — nichts zu tauschen.',
+  'editor3d.flip': 'G/R-Zuordnung tauschen',
+  'editor3d.flipTitle': 'Tauscht, welchen Zweig die Spulen G und R stellen — nur im Entwurf',
+  'editor3d.noFlips': 'Noch nichts getauscht.',
+  'editor3d.flipped': 'Getauscht: {list}',
+  'editor3d.downloadPlan': 'Gepatchte trackplan.json herunterladen',
+  'editor3d.downloadPlanTitle': 'Vollständiger Ersatz für src/data/trackplan.json — zusammen mit der Erwartungs-Notiz prüfen und committen',
+  'editor3d.downloadNote': 'Erwartungs-Notiz herunterladen',
+  'editor3d.downloadNoteTitle': 'Welche gepinnten Orakel-Erwartungen jeder Tausch bewegen würde (Doppel-Änderungs-Disziplin)',
 };
