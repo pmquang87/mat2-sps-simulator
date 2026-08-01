@@ -442,6 +442,10 @@ body.is-resizing-row, body.is-resizing-row * { cursor: row-resize !important; us
   border-top: 1px solid var(--border-soft);
 }
 .watch-row:hover { background: var(--surface-2); }
+/* The filter hides rows via the `hidden` attribute; without this counter-rule the
+ * `display: grid` above outweighs the UA sheet's `[hidden] { display: none }` and the
+ * filter changes nothing on screen (tests/ui/watchPanel.test.ts pins both halves). */
+.watch-row[hidden] { display: none; }
 .watch-name { font-family: var(--font-mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .watch-addr { font-family: var(--font-mono); color: var(--text-faint); }
 .watch-value { font-family: var(--font-mono); color: var(--text-faint); }

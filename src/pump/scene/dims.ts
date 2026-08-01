@@ -62,13 +62,15 @@ export const PUMP_DIM = {
   floorDrainY: 0.004,
 
   panelZ: 0.88,
-  panelY: 0.6,
+  /** Kept low on purpose (user request 2026-08-01): the console must not hide the tanks —
+   *  its highest edge stays well below the liquid columns from the default camera. */
+  panelY: 0.44,
   panelWidth: 1.62,
   panelDepth: 0.4,
   panelThickness: 0.03,
   /** Console panel tilt, radians: the back edge is higher and the face looks towards +z. */
   panelTiltRad: 0.55,
-  pedestalHeight: 0.56,
+  pedestalHeight: 0.4,
 
   controlSpacing: 0.24,
   /** Panel-local v of the two control rows (v grows towards the viewer and downwards). */
