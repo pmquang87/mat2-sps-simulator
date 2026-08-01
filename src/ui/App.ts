@@ -188,7 +188,8 @@ export interface SimHost {
    *  starts on Bahnhof 1 Gleis 1, Gruppe B on Gleis 4. Returns whether the loco moved —
    *  the shell mirrors the effect instead of assuming the call did something. */
   setExercise(exerciseId: string): boolean;
-  /** Seat the loco in the middle of a chosen station track (§10.1 start-track chooser).
+  /** Seat the loco on a chosen station track at the §10.1 seat rule's offset — upstream
+   *  of the track's first wired reed where possible (D19 guard (a)).
    *  Returns whether it moved; a refused seat leaves the loco — and the chooser display —
    *  where they were. */
   setStartTrack(ref: { stationKey: string; laneKey: string }): boolean;
@@ -360,6 +361,13 @@ export class App {
       onRunChecks: (networkId) => this.runChecks(networkId),
       onSelectNetwork: (selection) => {
         this.hintPanel.setNetwork(selection?.network ?? null);
+        // D19 note context first: the panel derives the mismatch note from this and the
+        // host-reported seat, and the re-seat below refreshes that seat synchronously.
+        // Without a live plant there is no seat to disagree with — the note would warn
+        // about a loco that does not exist, next to the simUnavailable banner.
+        this.controls.setOpenExercise(
+          this.host.available ? selection?.exerciseId ?? null : null,
+        );
         // Opening a network of the other Aufgabenstellung re-seats the loco (§7.1
         // `exerciseStarts`, D13). A re-seat resets the plant, so the controls, the force
         // mask and the watch list have to follow — same path as the Reset button.

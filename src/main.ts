@@ -43,11 +43,15 @@ import type { CameraMode, StartTrackOption, StartTrackRef } from './scene';
 import { bootstrapPump } from './pumpBootstrap';
 import {
   App,
+  SEAT_STORAGE_KEY,
   SceneEditorPanel,
   getLocale,
   initLocale,
+  parseStoredSeat,
   readEditorFlag,
   readStoredExperiment,
+  restoredSeatStart,
+  serializeStoredSeat,
   t,
   triggerDownload,
 } from './ui';
@@ -304,6 +308,25 @@ function bootstrapRailway(parent: HTMLElement): void {
       : { ...seatedTrack, exerciseId };
   }
 
+  // ── reload guard (§10.1, REVIEW_SCENE.md D19) ──────────────────────────────
+  // The editor buffer survives a reload (§7.4), so the seat has to as well: without this,
+  // F5 silently put the loco back on the §7.1 default while the student kept working on
+  // the other Aufgabenstellung's solution. The restore resolves through the SAME pinned
+  // rules the live actions use (`restoredSeatStart`: `startForExercise` /
+  // `startSpecForTrack`), so a restored seat is byte for byte one the host could have
+  // produced — D13 by construction. Reading is total: an unusable or unknown entry costs
+  // the restore, never the boot.
+  const kvStore = browserKeyValueStore();
+  if (stack !== null) {
+    const stored = parseStoredSeat(kvStore.get(SEAT_STORAGE_KEY));
+    const restored = stored === null
+      ? null
+      : safe(() => restoredSeatStart(stack.trackplan, stored, DEFAULT_START_EXERCISE_ID), null);
+    if (restored !== null && reseat(restored.start)) {
+      seatedExerciseId = restored.exerciseId;
+    }
+  }
+
   // ── pedagogy data + progress (§10.1–§10.3) ─────────────────────────────────
   const exercisesData = loadData<ExerciseSpec[]>('exercises.json', loadExercises);
   // Filtered for THIS experiment (§13.5): an example tagged `pump` addresses hardware the
@@ -313,7 +336,7 @@ function bootstrapRailway(parent: HTMLElement): void {
     'examples.json',
     (json) => loadExamplesForExperiment(json, 'railway'),
   );
-  const progress = new ProgressStore(browserKeyValueStore(), () => Date.now());
+  const progress = new ProgressStore(kvStore, () => Date.now());
 
   /** First-run editor buffer (§7.4): the example flagged `starter` — deliberately built from
    *  student-area operands so the very first "Load into PLC" is warning-free. Falls back to
@@ -494,11 +517,15 @@ function bootstrapRailway(parent: HTMLElement): void {
       const start = startForExercise(stack.trackplan, exerciseId);
       if (!reseat(start)) return false;     // rejected spec: loco stayed where it was
       seatedExerciseId = exerciseId;
+      // reload guard (D19): only a seat the plant ACCEPTED is worth surviving a reload
+      attempt(() => kvStore.set(SEAT_STORAGE_KEY,
+        serializeStoredSeat({ kind: 'exercise', exerciseId })));
       return true;
     },
 
     /**
-     * Seat the loco in the middle of a chosen station track (§10.1 start-track chooser). This
+     * Seat the loco on a chosen station track at the §10.1 seat rule's offset — upstream
+     * of the track's first wired reed where possible (D19 guard (a)). This
      * is NOT an exercise start: the §7.1 `exerciseStarts` offsets stay pinned for the graded
      * check runs, and choosing a track drops the exercise provenance so re-opening that
      * network re-seats the loco on its own start again.
@@ -509,6 +536,10 @@ function bootstrapRailway(parent: HTMLElement): void {
       if (start === null) return false;     // not a track of this board
       if (!reseat(start)) return false;
       seatedExerciseId = null;
+      // reload guard (D19): a direct track choice survives a reload as itself — restoring
+      // it must NOT re-manufacture an exercise provenance the student dropped
+      attempt(() => kvStore.set(SEAT_STORAGE_KEY,
+        serializeStoredSeat({ kind: 'track', stationKey: ref.stationKey, laneKey: ref.laneKey })));
       return true;
     },
 

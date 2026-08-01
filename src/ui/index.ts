@@ -9,6 +9,7 @@ import './styles.css';
 
 export * from './i18n/i18n';
 export * from './experiment';
+export * from './seatStorage';
 export * from './editorFlag';
 export * from './sceneEditor';
 export * from './download';
