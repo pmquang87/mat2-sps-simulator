@@ -2,7 +2,7 @@
  * Switch (Weiche) visuals: point blades, throw bar, side motor, indication lamp and the
  * white variable-name plate (ARCHITECTURE.md §3 `scene/switchMesh.ts`).
  *
- * Reference: `docs/research/frames/einfach_01.png` / `doppel_01.png` — a bulky dark-grey
+ * Reference: `reference/research/frames/einfach_01.png` / `doppel_01.png` — a bulky dark-grey
  * side motor next to the track and a white sticker (`xW02BH1G4`) on the ballast shoulder.
  *
  * Didactic core: the blade position must be readable at a glance, and it must *move* for
@@ -304,6 +304,8 @@ function buildOne(
     motorSide * (DIM.switchMotorOffset + DIM.labelPlateWidth * DIM.labelScale * 0.7),
     DIM.ballastHeight + DIM.labelPlateThickness,
   );
+  // deconflictPlates retreats a crowded plate towards what it names (D17)
+  plate.userData['anchorWorld'] = nodePos.clone();
   group.add(plate);
 
   // ── selection ring (hidden until highlighted) ──

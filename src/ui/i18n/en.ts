@@ -9,11 +9,18 @@ export const en = {
   // ── shell ────────────────────────────────────────────────────────────────
   'app.title': 'MAT2 SPS 3D Simulator',
   'app.subtitle': 'AWL (STL) emulator with a 3D model railway plant',
+  'app.subtitlePump': 'AWL (STL) emulator with the manual’s 3D pump plant',
   'app.loading': 'Loading…',
   'lang.label': 'Language',
   'lang.en': 'EN',
   'lang.de': 'DE',
   'lang.switchTo': 'Switch interface language to {lang}',
+
+  // ── experiment switcher ──────────────────────────────────────────────────
+  'experiment.label': 'Experiment',
+  'experiment.railway': 'Model railway',
+  'experiment.pump': 'Pump',
+  'experiment.switchTo': 'Switch to the {name} experiment — the page reloads; each experiment keeps its own program',
 
   // ── status line ──────────────────────────────────────────────────────────
   'status.ready': 'Ready',
@@ -75,11 +82,13 @@ export const en = {
   'controls.notausTitle': 'Latching button: E 1.7 (NotausBit) goes to 0 — your program must stop the train',
   'controls.notausRelease': 'Release',
   'controls.startTrack': 'Start track',
-  'controls.startTrackTitle': 'Where the loco stands — resets the plant and seats it on the start track of the chosen assignment',
-  'controls.startGruppeA': 'Group A',
-  'controls.startGruppeATitle': 'Group A: station 1, track 1',
-  'controls.startGruppeB': 'Group B',
-  'controls.startGruppeBTitle': 'Group B: station 1, track 4',
+  'controls.startTrackTitle': 'Where the loco stands — choosing a track resets the plant and puts the loco in the middle of it, facing the IU direction',
+  'controls.startTrackFromExercise': 'currently on the start track of the assignment you opened',
+  'controls.startStation': 'Station',
+  'controls.startStationTitle': 'Station the loco starts in',
+  'controls.startLane': 'Track',
+  'controls.startLaneTitle': 'Track of that station the loco starts on',
+  'controls.startLaneDeadEnd': 'dead end',
   'controls.camera': 'Camera',
   'controls.labels': 'Labels',
   'controls.labelsTitle': 'Show the white xW…/xR… name plates in the 3D view',
@@ -98,6 +107,15 @@ export const en = {
   'inputs.title': 'Try it: inputs',
   'inputs.note': 'Click to force an input bit of the loaded program, click again to release. A forced bit keeps its value even when a reed contact would drive it — that is how the manual’s timer and edge examples run without the railway.',
   'inputs.toggleTitle': 'Force {address} in the process image (PAE) — click again to release',
+  'inputs.notePump': 'Click to force an input bit of the loaded program, click again to release. A forced bit keeps its value even when a level switch or a button would drive it — handy for trying a branch the tanks are not in right now.',
+
+  // ── the plant’s own controls, as keyboard-reachable DOM (§ Experiments) ───
+  'plant.title': 'Plant controls',
+  'plant.note': 'The same controls as on the 3D console, operable with Tab and the keyboard. S1 and S0 are momentary: they stay pressed only while you hold them. The switches and the hand valves latch.',
+  'plant.holdTitle': 'Hold to press {name} — mouse button or Space; it releases as soon as you let go',
+  'plant.toggleTitle': 'Switch {name} on or off',
+  'plant.valve.inA': 'Refill valve → tank A',
+  'plant.valve.outB': 'Drain valve ← tank B',
 
   // ── course-template normalization (§5.1.5 I-TPL-001 / W-TPL-001) ─────────
   'template.detected': 'Course template recognized: {networks} network(s) found, {instructions} instruction(s) compiled, {ignored} line(s) of task text ignored. Your file stays exactly as you wrote it — only the sections after "--Bitte hier programmieren--" are loaded into the PLC.',
@@ -135,6 +153,9 @@ export const en = {
   'watch.section.student': 'Student flags M 10 – M 20',
   'watch.section.timers': 'Timers T 10 – T 20',
   'watch.section.counters': 'Counter Z 1',
+  'watch.section.pumpInputs': 'Inputs E (buttons, level switches, toggles)',
+  'watch.section.pumpOutputs': 'Outputs A (pump, indicator lamps)',
+  'watch.section.pumpFlags': 'Flags M 0 – M 20 (manual uses M 0.0)',
   'watch.timer': '{remaining} / {preset} ms',
   'watch.counter': 'count {value}',
   'watch.q': 'Q',
@@ -147,6 +168,34 @@ export const en = {
   'tabs.exercises': 'Exercises',
   'tabs.hints': 'Hints',
   'tabs.examples': 'Examples',
+  'tabs.parameters': 'Parameters',
+
+  // ── static task document (pump experiment) ───────────────────────────────
+  'task.title': 'Task',
+  'task.note': 'This experiment is not graded. It is the manual’s teaching example, so every instruction can be tried on a live plant — start, stop, refill and drain by hand in the 3D view.',
+
+  // ── plant parameters (pump experiment) ───────────────────────────────────
+  'params.title': 'Plant parameters',
+  'params.unavailable': 'Plant parameters unavailable: {reason}',
+  'params.note': 'Rates, thresholds and the dry-run delay take effect immediately. The two initial levels apply on the next Reset.',
+  'params.reset': 'Reset to defaults',
+  'params.resetTitle': 'Put every parameter back to its documented default',
+  'params.range': 'allowed {min} – {max} {unit}',
+  'params.sliderLabel': '{label} (slider)',
+  'params.valueLabel': '{label} (value)',
+  'params.applyLive': 'live',
+  'params.applyOnReset': 'on reset',
+  'params.field.pumpRatePctS': 'Pump rate A → B',
+  'params.field.refillRatePctS': 'Refill rate (valve into A)',
+  'params.field.drainRatePctS': 'Drain rate (valve out of B)',
+  'params.field.llsThresholdPct': 'LLS threshold (empty signal)',
+  'params.field.hlsThresholdPct': 'HLS threshold (full signal)',
+  'params.field.dryRunDelayS': 'Dry-run delay',
+  'params.field.initialVolAPct': 'Initial level tank A',
+  'params.field.initialVolBPct': 'Initial level tank B',
+  'params.unit.pctPerS': '%/s',
+  'params.unit.pct': '%',
+  'params.unit.s': 's',
 
   // ── exercise browser (§10.1) ─────────────────────────────────────────────
   'exercise.title': 'Exercises',

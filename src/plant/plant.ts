@@ -13,13 +13,14 @@
  */
 import { wordToTarget } from './fahrstrom';
 import type { FahrstromState } from './fahrstrom';
+import { OccupiedPath } from './occupiedPath';
+import type { ConsistPath } from './occupiedPath';
 import { Reed } from './reeds';
 import type { ReedState } from './reeds';
 import { mulberry32 } from './random';
 import { Switch, SWITCH_OCCUPANCY_MM } from './switches';
 import type { SwitchPosition, SwitchState } from './switches';
 import { TrackGraph } from './trackGraph';
-import type { ConsistPath } from './trackGraph';
 import { Train } from './train';
 import type { TrainState } from './train';
 import type { TrackplanFile, TrainStartSpec, Vec2 } from './types';
@@ -36,12 +37,17 @@ export interface PlantConfig {
  * (`docs/REVIEW_SCENE.md` D12). Covers the longest consist the scene draws (422 mm) plus the
  * ±0.75 · half-length sampling and a margin.
  *
- * **Symmetric on purpose.** The plant models the train as a point and so has no notion of which
- * way the loco faces; the coaches sit behind its FACING, which is opposite to the direction of
- * travel during a push-back. An asymmetric span (the first cut of this was 700 behind / 80
- * ahead) therefore truncates exactly when the train reverses — both coaches clamp to the same
- * end point and the consist collapses. Publishing the same reach both ways costs ~350 polyline
- * lookups per snapshot and removes the failure mode entirely.
+ * **The PUBLISHED span is symmetric on purpose.** The plant models the train as a point and so
+ * has no notion of which way the loco faces; the coaches sit behind its FACING, which is
+ * opposite to the direction of travel during a push-back. An asymmetric published span (the
+ * first cut of this was 700 behind / 80 ahead) therefore truncates exactly when the train
+ * reverses — both coaches clamp to the same end point and the consist collapses. Publishing the
+ * same reach both ways costs ~350 polyline lookups per snapshot and removes the failure mode.
+ *
+ * The RECORD underneath is a different matter: `OccupiedPath` freezes only the consist's own
+ * footprint (tracked side-aware, `OCCUPIED_LEAD_MM`/`OCCUPIED_NOSE_MM`) and answers the rest of
+ * this span with a live walk — see occupiedPath.ts for why that asymmetry is safe: the record
+ * mirrors on a frame flip instead of truncating.
  */
 export const CONSIST_REACH_MM = 700;
 /** Sampling spacing, mm. 4 mm keeps the chord error under 0,02 mm on the tightest curve (90,9 mm). */
@@ -83,6 +89,7 @@ export class Plant {
   private readonly strictDerail: boolean;
 
   private train!: Train;
+  private occupied!: OccupiedPath;
   private switchUnits!: Switch[];
   private switchUnitById!: Map<string, Switch>;
   private reedUnits!: Reed[];
@@ -114,6 +121,8 @@ export class Plant {
     this.notaus = false;
     this.timeMs = 0;
     this.events = [];
+    this.occupied = new OccupiedPath(this.graph, CONSIST_REACH_MM, CONSIST_STEP_MM);
+    this.occupied.reset(this.train.state(), (id) => this.mustSwitch(id).position);
   }
 
   /** Fixed-step physics; deterministic (§6.3). */
@@ -125,16 +134,37 @@ export class Plant {
     };
 
     // 1. Train motion (switch positions as of the previous step's completions).
+    const senseBefore = this.train.directionSense;
     this.train.step(dtMs, {
       positionOf: (switchId) => this.mustSwitch(switchId).position,
       emit,
       nowMs: this.timeMs,
     });
 
+    // 1b. Record the track the consist now stands on. Rendering-only data (§6.3) — it reads the
+    // motion of step 1 and never feeds back into it. It runs before the actuation timers of step
+    // 2 so that it resolves any new track through the same positions the train just used.
+    this.occupied.advance(
+      this.train.state(),
+      this.train.lastStepTravelMm,
+      this.train.directionSense !== senseBefore,
+      (switchId) => this.mustSwitch(switchId).position,
+    );
+
     // 2. Switch actuation timers + coil hold measurement.
     for (const sw of this.switchUnits) {
       const occupied = sw.isMoving ? this.trainOccupiesNode(sw.spec.nodeId) : false;
+      const positionBefore = sw.position;
       const { movedUnderTrain } = sw.step(dtMs, this.timeMs, occupied, emit);
+      // 2b. A switch that completed on track the loco has not crossed yet but is about to takes
+      // the record with it (`docs/REVIEW_SCENE.md` D16 Folgearbeit): the loco WILL drive over the
+      // new branch, so leaving the old one frozen under the leading coaches does not hold the
+      // consist together, it tears it. Gated on motion — a standing consist is going nowhere and
+      // the D16 freeze applies unchanged. Bounded: one truncation plus a walk of at most
+      // OCCUPIED_LEAD_MM, and deterministic in trackplan order.
+      if (sw.position !== positionBefore && this.train.speed > 0) {
+        this.occupied.reresolveLead(sw.spec.nodeId, (id) => this.mustSwitch(id).position);
+      }
       if (movedUnderTrain && this.strictDerail) {
         emit({ t: this.timeMs, type: 'derail', switchId: sw.id });
         this.train.derailNow(emit, this.timeMs);
@@ -195,13 +225,10 @@ export class Plant {
     // atan2 is rendering-only data (§6.3) — it never feeds back into plant state.
     // `+ 0` normalizes IEEE −0 (atan2(−0, −1) would flip π to −π).
     const headingRad = Math.atan2(tan.y * ts.direction + 0, tan.x * ts.direction + 0);
-    // The track the consist stands on, walked live through the current switch positions — see
-    // TrackGraph.consistPath. Rendering-only data (§6.3): it never feeds back into plant state.
-    const consistPath = this.graph.consistPath(
-      { edgeId: ts.edgeId, offsetMm: ts.offsetMm, direction: ts.direction },
-      { aheadMm: CONSIST_REACH_MM, behindMm: CONSIST_REACH_MM, stepMm: CONSIST_STEP_MM },
-      (id) => this.mustSwitch(id).position,
-    );
+    // The track the consist stands on — recorded where the train has driven, walked through the
+    // current switch positions where it has not (see OccupiedPath). Rendering-only data (§6.3):
+    // it never feeds back into plant state.
+    const consistPath = this.occupied.path((id) => this.mustSwitch(id).position);
     return {
       timeMs: this.timeMs,
       train: { ...ts, worldPos, headingRad, consistPath },

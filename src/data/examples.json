@@ -120,8 +120,8 @@
       "category": "pattern",
       "title": { "de": "Pumpe mit Nachlaufzeit (SA, Anleitung)", "en": "Pump with run-on time (SA, manual)" },
       "body": {
-        "de": "Angewandtes SA-Beispiel: Die Pumpe läuft nach Wegfall der Startbedingungen noch 3 Sekunden nach.",
-        "en": "Applied SA example: the pump keeps running for 3 more seconds after the start conditions disappear."
+        "de": "Angewandtes SA-Beispiel. Die Nachlaufzeit wirkt auf die PROZESSBEDINGUNGEN: fällt Trockenlaufschutz, Leermeldung A oder Vollmeldung B weg, läuft die Pumpe noch 3 s weiter, weil T 1 als Ausschaltverzögerung hält. Falle: auf S0 wirkt sie NICHT. S0 setzt M 0.0 in einem früheren Netzwerk desselben Zyklus zurück, und das Ausgangsnetzwerk fragt „U M 0.0“ vor „U T 1“ ab — der Stopp-Taster hält die Pumpe also schon im nächsten Zyklus an. Gemessen am Simulator, nicht angenommen (tests/pump/scan.test.ts).",
+        "en": "Applied SA example. The run-on time acts on the PROCESS conditions: when the dry-run guard, the empty signal of A or the full signal of B drops out, the pump keeps running for 3 s because T 1 holds as an off-delay. The trap: it does NOT act on S0. S0 resets M 0.0 in an earlier network of the same scan, and the output network queries \"U M 0.0\" before \"U T 1\" — so the stop button stops the pump on the very next scan. Measured against the simulator, not assumed (tests/pump/scan.test.ts)."
       },
       "awl": "U    E    0.0   // Wenn S1 (E 0.0) betätigt wird\nU    E    0.3   // und Leer-Meldung von Tank B\nS    M    0.0   // setze Merkerbit für Schalter\n\nU    E    0.5   // solange Trockenlaufschutz benetzt ist\nUN   E    0.1   // UND NICHT Leer-Meldung von Tank A\nUN   E    0.4   // UND NICHT Voll-Meldung von Tank B\nU    M    0.0   // Startbedingungen vorhanden waren\nL    S5T#3S     // 3 sec. Nachlaufzeit\nSA   T    1     // speichern im Zeitoperanden\n\nU    E    0.6   // Wenn S0 (E 0.6) betätigt wird\nR    M    0.0   // Rücksetze Merkerbit für Schalter\n\nU    M    0.0   // Wenn Merkerbit M 0.0 anliegt\nU    T    1     // Abfragen der Zeit\n=    A    0.1   // Ausgang Pumpe (A 0.1)",
       "source": "Anleitung IV.2.6.6"
@@ -162,6 +162,7 @@
     {
       "id": "weichenstrasse-template",
       "category": "pattern",
+      "experiment": "railway",
       "title": { "de": "Muster: Weichenstraße mit 300-ms-Impuls", "en": "Pattern: point route with 300 ms pulse" },
       "body": {
         "de": "Alle Weichen einer Straße aus EINEM SV-Impuls — Operanden neutral.",

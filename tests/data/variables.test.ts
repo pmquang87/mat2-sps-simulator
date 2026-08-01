@@ -8,18 +8,10 @@
  * checkInvariants(), so the committed artifact is verified by a checker that can fail.
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { checkInvariants, parseVariablenliste } from '../../tools/gen-variables';
 import variablesJson from '../../src/data/variables.json';
-
-/**
- * `Variablenliste.txt` is course-authored material and is NOT published — the public
- * repository carries code only. The generator↔artifact sync check below therefore skips in a
- * clone and runs at full strength here, where the source list exists. Everything else in this
- * file checks the committed `variables.json` directly and needs no source file.
- */
-const SOURCE_LIST = new URL('../../Variablenliste.txt', import.meta.url);
-const SOURCE_LIST_PRESENT = existsSync(SOURCE_LIST);
 
 interface Entry {
   symbol: string;
@@ -40,12 +32,20 @@ describe('variables.json artifact', () => {
     expect(entries).toHaveLength(135);
   });
 
-  it.skipIf(!SOURCE_LIST_PRESENT)('is in sync with a fresh parse of Variablenliste.txt (cp1252)', () => {
-    const raw = readFileSync(SOURCE_LIST);
-    const regenerated = parseVariablenliste(raw);
-    expect(entries).toEqual(regenerated);
-    expect(checkInvariants(regenerated)).toEqual([]);
-  });
+  // reference/ is the local-only course-material folder (gitignored); a public checkout
+  // has no Variablenliste.txt, so the regeneration cross-check runs only where it exists.
+  const variablenliste = fileURLToPath(
+    new URL('../../reference/Variablenliste.txt', import.meta.url),
+  );
+  it.runIf(existsSync(variablenliste))(
+    'is in sync with a fresh parse of Variablenliste.txt (cp1252)',
+    () => {
+      const raw = readFileSync(variablenliste);
+      const regenerated = parseVariablenliste(raw);
+      expect(entries).toEqual(regenerated);
+      expect(checkInvariants(regenerated)).toEqual([]);
+    },
+  );
 
   it('has unique symbols and canonical address formats', () => {
     expect(new Set(entries.map((e) => e.symbol)).size).toBe(entries.length);

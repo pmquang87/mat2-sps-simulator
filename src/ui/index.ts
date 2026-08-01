@@ -8,7 +8,9 @@
 import './styles.css';
 
 export * from './i18n/i18n';
+export * from './experiment';
 export * from './App';
+export * from './pumpProfile';
 export * from './templateNotice';
 export * from './editor/EditorPanel';
 export * from './editor/awlLanguage';
@@ -20,5 +22,7 @@ export * from './panels/WatchPanel';
 export * from './panels/ExercisePanel';
 export * from './panels/HintPanel';
 export * from './panels/ExamplesPanel';
+export * from './panels/ParametersPanel';
+export * from './panels/TaskPanel';
 export * from './layout/layoutModel';
 export * from './layout/LayoutController';

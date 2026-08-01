@@ -9,7 +9,7 @@
  * the report's Rangierfahrt exercises, because that is the direction in which a sign error at
  * an edge hand-over would surface.
  *
- * Deliberately independent of `Claude_work/` (see tests/oracle/gruppeAOnTrack.oracle.test.ts
+ * Deliberately independent of `reference/Claude_work/` (see tests/oracle/gruppeAOnTrack.oracle.test.ts
  * for the run of the actual Gruppe A solution): CI must keep this guard even without the
  * solution files.
  */

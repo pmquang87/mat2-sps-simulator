@@ -11,11 +11,18 @@ export const de: Record<MsgKey, string> = {
   // ── Rahmen ───────────────────────────────────────────────────────────────
   'app.title': 'MAT2 SPS 3D-Simulator',
   'app.subtitle': 'AWL-Emulator mit 3D-Modellbahnanlage',
+  'app.subtitlePump': 'AWL-Emulator mit der 3D-Pumpenanlage der Anleitung',
   'app.loading': 'Wird geladen…',
   'lang.label': 'Sprache',
   'lang.en': 'EN',
   'lang.de': 'DE',
   'lang.switchTo': 'Oberflächensprache auf {lang} umstellen',
+
+  // ── Versuchsauswahl ──────────────────────────────────────────────────────
+  'experiment.label': 'Versuch',
+  'experiment.railway': 'Modellbahn',
+  'experiment.pump': 'Pumpe',
+  'experiment.switchTo': 'Zum Versuch {name} wechseln — die Seite wird neu geladen; jeder Versuch behält sein eigenes Programm',
 
   // ── Statuszeile ──────────────────────────────────────────────────────────
   'status.ready': 'Bereit',
@@ -77,11 +84,13 @@ export const de: Record<MsgKey, string> = {
   'controls.notausTitle': 'Rastender Taster: E 1.7 (NotausBit) wird 0 — Ihr Programm muss den Zug stoppen',
   'controls.notausRelease': 'Entriegeln',
   'controls.startTrack': 'Startgleis',
-  'controls.startTrackTitle': 'Startposition der Lok — setzt die Anlage zurück und stellt die Lok auf das Startgleis der gewählten Aufgabenstellung',
-  'controls.startGruppeA': 'Gruppe A',
-  'controls.startGruppeATitle': 'Gruppe A: Bahnhof 1, Gleis 1',
-  'controls.startGruppeB': 'Gruppe B',
-  'controls.startGruppeBTitle': 'Gruppe B: Bahnhof 1, Gleis 4',
+  'controls.startTrackTitle': 'Startposition der Lok — die Gleiswahl setzt die Anlage zurück und stellt die Lok in die Mitte des Gleises, Blickrichtung IU',
+  'controls.startTrackFromExercise': 'steht zurzeit auf dem Startgleis der geöffneten Aufgabenstellung',
+  'controls.startStation': 'Bahnhof',
+  'controls.startStationTitle': 'Bahnhof, in dem die Lok startet',
+  'controls.startLane': 'Gleis',
+  'controls.startLaneTitle': 'Gleis dieses Bahnhofs, auf dem die Lok startet',
+  'controls.startLaneDeadEnd': 'Stumpfgleis',
   'controls.camera': 'Kamera',
   'controls.labels': 'Schilder',
   'controls.labelsTitle': 'Weiße xW…/xR…-Namensschilder in der 3D-Ansicht einblenden',
@@ -100,6 +109,15 @@ export const de: Record<MsgKey, string> = {
   'inputs.title': 'Selbst testen: Eingänge',
   'inputs.note': 'Klick erzwingt ein Eingangsbit des geladenen Programms, erneuter Klick gibt es frei. Ein erzwungenes Bit behält seinen Wert, auch wenn ein Reedkontakt es ansteuern würde — so laufen die Zeit- und Flankenbeispiele der Anleitung ohne die Anlage.',
   'inputs.toggleTitle': 'Eingang {address} im Prozessabbild (PAE) erzwingen — erneuter Klick gibt ihn frei',
+  'inputs.notePump': 'Klicken erzwingt ein Eingangsbit des geladenen Programms, erneutes Klicken gibt es frei. Ein erzwungenes Bit behält seinen Wert auch dann, wenn ein Grenzschalter oder ein Taster ihn treiben würde — praktisch, um einen Zweig zu prüfen, in dem die Tanks gerade nicht stehen.',
+
+  // ── Bedienelemente der Anlage, mit der Tastatur erreichbar (§ Versuche) ───
+  'plant.title': 'Bedienelemente der Anlage',
+  'plant.note': 'Dieselben Bedienelemente wie am 3D-Pult, mit Tabulator und Tastatur bedienbar. S1 und S0 sind Taster: sie bleiben nur gedrückt, solange Sie sie halten. Die Schalter und die Handventile rasten ein.',
+  'plant.holdTitle': '{name} zum Betätigen gedrückt halten — Maustaste oder Leertaste; beim Loslassen fällt der Taster ab',
+  'plant.toggleTitle': '{name} ein- oder ausschalten',
+  'plant.valve.inA': 'Handventil Zulauf → Tank A',
+  'plant.valve.outB': 'Handventil Ablauf ← Tank B',
 
   // ── Vorlagen-Erkennung (§5.1.5 I-TPL-001 / W-TPL-001) ────────────────────
   'template.detected': 'Aufgabenvorlage erkannt: {networks} Netzwerk(e) gefunden, {instructions} Anweisung(en) übersetzt, {ignored} Zeile(n) Aufgabentext übergangen. Ihre Datei bleibt unverändert — in die SPS geladen werden nur die Abschnitte nach „--Bitte hier programmieren--“.',
@@ -137,6 +155,9 @@ export const de: Record<MsgKey, string> = {
   'watch.section.student': 'Merker für Studierende M 10 – M 20',
   'watch.section.timers': 'Zeiten T 10 – T 20',
   'watch.section.counters': 'Zähler Z 1',
+  'watch.section.pumpInputs': 'Eingänge E (Taster, Grenzschalter, Kippschalter)',
+  'watch.section.pumpOutputs': 'Ausgänge A (Pumpe, Meldeleuchten)',
+  'watch.section.pumpFlags': 'Merker M 0 – M 20 (die Anleitung nutzt M 0.0)',
   'watch.timer': '{remaining} / {preset} ms',
   'watch.counter': 'Zählerstand {value}',
   'watch.q': 'Q',
@@ -149,6 +170,34 @@ export const de: Record<MsgKey, string> = {
   'tabs.exercises': 'Aufgaben',
   'tabs.hints': 'Hinweise',
   'tabs.examples': 'Beispiele',
+  'tabs.parameters': 'Parameter',
+
+  // ── Statische Aufgabenbeschreibung (Versuch Pumpe) ───────────────────────
+  'task.title': 'Aufgabe',
+  'task.note': 'Dieser Versuch wird nicht bewertet. Er ist das Lehrbeispiel der Anleitung: Sie können jede Anweisung an einer laufenden Anlage ausprobieren — Starten, Stoppen, Befüllen und Ablassen von Hand in der 3D-Ansicht.',
+
+  // ── Anlagenparameter (Versuch Pumpe) ─────────────────────────────────────
+  'params.title': 'Anlagenparameter',
+  'params.unavailable': 'Anlagenparameter nicht verfügbar: {reason}',
+  'params.note': 'Förderleistung, Schaltpunkte und Trockenlaufverzögerung wirken sofort. Die beiden Anfangsfüllstände gelten ab dem nächsten Zurücksetzen.',
+  'params.reset': 'Auf Standardwerte',
+  'params.resetTitle': 'Jeden Parameter auf seinen dokumentierten Standardwert zurücksetzen',
+  'params.range': 'zulässig {min} – {max} {unit}',
+  'params.sliderLabel': '{label} (Schieberegler)',
+  'params.valueLabel': '{label} (Wert)',
+  'params.applyLive': 'sofort',
+  'params.applyOnReset': 'nach Zurücksetzen',
+  'params.field.pumpRatePctS': 'Förderleistung A → B',
+  'params.field.refillRatePctS': 'Zulauf (Ventil in A)',
+  'params.field.drainRatePctS': 'Ablauf (Ventil aus B)',
+  'params.field.llsThresholdPct': 'Schaltpunkt LLS (Leermeldung)',
+  'params.field.hlsThresholdPct': 'Schaltpunkt HLS (Vollmeldung)',
+  'params.field.dryRunDelayS': 'Trockenlaufverzögerung',
+  'params.field.initialVolAPct': 'Anfangsfüllstand Tank A',
+  'params.field.initialVolBPct': 'Anfangsfüllstand Tank B',
+  'params.unit.pctPerS': '%/s',
+  'params.unit.pct': '%',
+  'params.unit.s': 's',
 
   // ── Aufgabenbrowser (§10.1) ──────────────────────────────────────────────
   'exercise.title': 'Aufgaben',

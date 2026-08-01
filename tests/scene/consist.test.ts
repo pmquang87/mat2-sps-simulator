@@ -13,11 +13,14 @@
  *    481,7 mm by cycle 1431 of the Gruppe A run, with the consist stretched to 691 mm against a
  *    physical 422 mm.
  *
- * Vehicles are now placed by arc length on `PlantSnapshot.train.consistPath`, walked live
- * through the current switch positions by `TrackGraph.consistPath`. These tests pin the
- * properties that model is supposed to deliver, measured against the real trackplan: every
- * vehicle sits on a real centre line, the consist keeps its physical length, and it never turns
- * inside out when the train reverses.
+ * Vehicles are now placed by arc length on `PlantSnapshot.train.consistPath`. D12 derived that
+ * path by walking the live graph on every snapshot, which handed the switches control over where
+ * the coaches are; D16 replaced it with `OccupiedPath`, a record of the track the consist has
+ * driven onto, and the live walk now only answers for track no vehicle occupies. The properties
+ * pinned here are the ones both models owe, measured against the real trackplan: every vehicle
+ * sits on a real centre line, the consist keeps its physical length, and it never turns inside
+ * out when the train reverses. What must NOT move when a switch is thrown is pinned separately,
+ * in `tests/plant/consistFreeze.test.ts`.
  *
  * They are deliberately expressed as "distance from any track centre line" rather than as buffer
  * internals: that is the property the user can see, and it stays meaningful whatever the

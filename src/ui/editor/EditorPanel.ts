@@ -19,11 +19,13 @@ import type { Diagnostic, SymbolTable } from '../../core';
 import { append, clear, el } from '../dom';
 import { getLocale, t } from '../i18n/i18n';
 import { awl } from './awlLanguage';
+import { EditorBufferStore } from './bufferStore';
 import { awlCompletion, completionSymbolCount } from './completion';
 import { awlLinter, refreshLint } from './lint';
 
-const STORAGE_KEY = 'mat2sps.editor.v1';
-const SAVE_DEBOUNCE_MS = 500;
+/** Railway buffer key. The pump experiment passes its own (`mat2sps.editor.pump.v1`) so the
+ *  two programs cannot overwrite each other — they address different plants. */
+export const DEFAULT_EDITOR_STORAGE_KEY = 'mat2sps.editor.v1';
 
 export interface EditorPanelOptions {
   symbols: SymbolTable | null;
@@ -32,6 +34,8 @@ export interface EditorPanelOptions {
   /** First-run buffer when nothing is stored yet — main.ts passes a runnable example from
    *  examples.json (§10.3); falls back to the built-in neutral starter snippet. */
   defaultSource?: string;
+  /** localStorage key of the mirrored buffer; defaults to the railway's. */
+  storageKey?: string;
 }
 
 /** Neutral starter buffer — syntax demonstration only, never task content (§10.2 guard). */
@@ -49,22 +53,6 @@ function starterSource(): string {
         '=     M 10.0       // assignment',
         '',
       ].join('\n');
-}
-
-function readStored(): string | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(source: string): void {
-  try {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, source);
-  } catch {
-    /* quota or private mode — the editor keeps working, it just is not persisted */
-  }
 }
 
 const editorTheme = EditorView.theme({
@@ -106,13 +94,18 @@ export class EditorPanel {
   private readonly stateNode: HTMLElement;
   private readonly symbolsNode: HTMLElement;
   private readonly placeholderCompartment = new Compartment();
+  /** Debounced mirror of the buffer (`ui/editor/bufferStore.ts`). */
+  private readonly buffer: EditorBufferStore;
 
   private diagnostics: readonly Diagnostic[] = [];
   private loadedSource: string | null = null;
-  private saveTimer: number | null = null;
 
   constructor(options: EditorPanelOptions) {
     this.options = options;
+    this.buffer = new EditorBufferStore(
+      options.storageKey ?? DEFAULT_EDITOR_STORAGE_KEY,
+      () => this.getSource(),
+    );
 
     this.titleNode = el('h2', { className: 'panel-title', text: t('editor.title') });
     this.stateNode = el('span', { className: 'panel-badge' });
@@ -150,7 +143,7 @@ export class EditorPanel {
     this.view = new EditorView({
       parent: host,
       state: EditorState.create({
-        doc: readStored() ?? options.defaultSource ?? starterSource(),
+        doc: this.buffer.stored() ?? options.defaultSource ?? starterSource(),
         extensions: [
           lineNumbers(),
           highlightActiveLineGutter(),
@@ -248,6 +241,17 @@ export class EditorPanel {
     refreshLint(this.view);
   }
 
+  /**
+   * Mirror the buffer to storage NOW, cancelling the pending debounced save.
+   *
+   * The debounce is 500 ms, and the experiment switcher reloads the page — which destroys the
+   * timer instead of running it. Anything typed in that window would be gone, so the shell
+   * flushes here before it reloads (and `dispose()` does the same on teardown).
+   */
+  flush(): void {
+    this.flushSave();
+  }
+
   dispose(): void {
     this.flushSave();
     this.view.destroy();
@@ -267,18 +271,10 @@ export class EditorPanel {
   }
 
   private scheduleSave(): void {
-    if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
-    this.saveTimer = window.setTimeout(() => {
-      this.saveTimer = null;
-      writeStored(this.getSource());
-    }, SAVE_DEBOUNCE_MS);
+    this.buffer.schedule();
   }
 
   private flushSave(): void {
-    if (this.saveTimer !== null) {
-      window.clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
-    writeStored(this.getSource());
+    this.buffer.flush();
   }
 }

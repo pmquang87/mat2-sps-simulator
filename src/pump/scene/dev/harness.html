@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pump scene harness (dev only)</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #1d232b;
+        color: #e8e8e4;
+        font: 12px/1.5 "Segoe UI", system-ui, sans-serif;
+      }
+      #view {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #hud,
+      #keys {
+        position: fixed;
+        left: 10px;
+        padding: 6px 10px;
+        border-radius: 4px;
+        background: rgba(16, 18, 20, 0.72);
+        pointer-events: none;
+        white-space: pre;
+      }
+      #hud {
+        top: 10px;
+      }
+      #keys {
+        bottom: 10px;
+        color: #9fb2c4;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud">booting…</div>
+    <div id="keys">
+      drag orbit · wheel zoom · click the pedestal and the valve handwheels
+      P pause · R reset · L labels · A refill valve · B drain valve · S1/S0 = keys 1 / 0
+    </div>
+    <script type="module" src="./harness.ts"></script>
+  </body>
+</html>

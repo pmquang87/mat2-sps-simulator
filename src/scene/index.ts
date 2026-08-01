@@ -53,8 +53,11 @@ export {
   type SceneQuality,
 } from './materials';
 export {
+  BOARD_FACE_GAP_MM,
+  DECONFLICT_MAX_SLIDE_MM,
   LabelFactory,
   createTextTexture,
+  deconflictPlates,
   placePlate,
   type BoardOptions,
   type PlateOptions,
@@ -98,3 +101,11 @@ export {
   type Terrain,
   type TunnelResolution,
 } from './landscape';
+export {
+  iuTravelSign,
+  startSpecForTrack,
+  startTrackOf,
+  startTrackOptions,
+  type StartTrackOption,
+  type StartTrackRef,
+} from './startTracks';

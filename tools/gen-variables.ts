@@ -1,5 +1,5 @@
 /**
- * tools/gen-variables.ts — parse ../Variablenliste.txt (cp1252!) into src/data/variables.json
+ * tools/gen-variables.ts — parse ../reference/Variablenliste.txt (cp1252!) into src/data/variables.json
  * (ARCHITECTURE.md §3, §7.2).
  *
  * Run from the repo root with plain Node ≥ 22.18 (native type stripping):
@@ -235,7 +235,7 @@ export function checkInvariants(entries: readonly VariablesFileEntry[]): string[
 
 function main(): void {
   const here = dirname(fileURLToPath(import.meta.url));
-  const sourcePath = join(here, '..', 'Variablenliste.txt');
+  const sourcePath = join(here, '..', 'reference', 'Variablenliste.txt');
   const outPath = join(here, '..', 'src', 'data', 'variables.json');
 
   const entries = parseVariablenliste(readFileSync(sourcePath));

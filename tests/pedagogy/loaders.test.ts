@@ -16,12 +16,14 @@ import {
   exampleAsEditorSource,
   exampleAwlLines,
   exampleLineCount,
+  examplesForExperiment,
   examplesWithPlantSymbols,
   findExample,
   findNetwork,
   groupExamplesByCategory,
   hintsForNetwork,
   loadExamples,
+  loadExamplesForExperiment,
   loadExamplesOrEmpty,
   loadExercises,
   missingExampleRefs,
@@ -382,10 +384,90 @@ describe.skipIf(exercisesJson === null)('src/data/exercises.json', () => {
   });
 });
 
+/**
+ * The optional `experiment` tag (§ Experiments). Tagging is the EXCEPTION: the Anleitung's
+ * snippets are operand-neutral and run meaningfully on both plants, so an untagged library
+ * must look identical to both experiments. Only a snippet that needs hardware the other
+ * plant does not have may be restricted.
+ */
+describe('examplesForExperiment', () => {
+  it('accepts the tag and rejects anything else', () => {
+    const tagged = loadExamples(examplesFile({ experiment: 'railway' }));
+    expect(tagged[0]?.experiment).toBe('railway');
+    expect(loadExamples(examplesFile({ experiment: 'pump' }))[0]?.experiment).toBe('pump');
+    expect(() => loadExamples(examplesFile({ experiment: 'weiche' }))).toThrow(/expected one of/);
+    expect(() => loadExamples(examplesFile({ experiment: true }))).toThrow(/expected one of/);
+  });
+
+  it('leaves an untagged example visible to both experiments', () => {
+    const examples = loadExamples(examplesFile());
+    expect(examples.every((e) => e.experiment === undefined)).toBe(true);
+    for (const experiment of ['railway', 'pump'] as const) {
+      expect(examplesForExperiment(examples, experiment).map((e) => e.id))
+        .toEqual(['sv-pulse', 'pump-selfhold']);
+    }
+  });
+
+  it('hides a tagged example from the other experiment only', () => {
+    const railwayOnly = loadExamples(examplesFile({ experiment: 'railway' }));
+    expect(examplesForExperiment(railwayOnly, 'railway').map((e) => e.id))
+      .toEqual(['sv-pulse', 'pump-selfhold']);
+    expect(examplesForExperiment(railwayOnly, 'pump').map((e) => e.id))
+      .toEqual(['pump-selfhold']);
+
+    const pumpOnly = loadExamples(examplesFile({ experiment: 'pump' }));
+    expect(examplesForExperiment(pumpOnly, 'pump').map((e) => e.id))
+      .toEqual(['sv-pulse', 'pump-selfhold']);
+    expect(examplesForExperiment(pumpOnly, 'railway').map((e) => e.id))
+      .toEqual(['pump-selfhold']);
+  });
+});
+
 describe.skipIf(examplesJson === null)('src/data/examples.json', () => {
   it('validates against the §7.4 schema and stays operand-neutral', () => {
     const examples = loadExamples(examplesJson);
     expect(examples.length).toBeGreaterThan(0);
     expect(examplesWithPlantSymbols(examples).map((e) => e.id)).toEqual([]);
+  });
+
+  /**
+   * The SHIPPED tagging decision. Only `weichenstrasse-template` is railway-only (it drives
+   * switch coils, which the pump plant does not have), and nothing is pump-only — every
+   * other snippet is neutral enough to teach on either plant. Both directions are asserted
+   * so neither "the railway lost an example" nor "the pump kept one it cannot run" can pass.
+   */
+  it('tags exactly the one example that needs railway hardware', () => {
+    const examples = loadExamples(examplesJson);
+    const tagged = examples.filter((e) => e.experiment !== undefined);
+    expect(tagged.map((e) => `${e.id}:${e.experiment ?? ''}`))
+      .toEqual(['weichenstrasse-template:railway']);
+
+    const railway = examplesForExperiment(examples, 'railway');
+    const pump = examplesForExperiment(examples, 'pump');
+    expect(railway.map((e) => e.id)).toEqual(examples.map((e) => e.id));
+    expect(pump.map((e) => e.id))
+      .toEqual(examples.filter((e) => e.id !== 'weichenstrasse-template').map((e) => e.id));
+    expect(pump.some((e) => e.id === 'weichenstrasse-template')).toBe(false);
+    // The pump's own starter buffer has to survive the filter.
+    expect(pump.some((e) => e.id === 'pump-sr')).toBe(true);
+  });
+
+  /**
+   * The call each bootstrap actually makes, on the shipped file — not `examplesForExperiment`
+   * on a hand-built list. The railway shipped the UNFILTERED library once, because parsing and
+   * filtering were two steps and `main.ts` only took the first; `loadExamplesForExperiment` is
+   * that pair welded together, and this is the one entry both bootstraps go through.
+   *
+   * What is still not reachable from a node suite is the literal `'railway'` in `main.ts`
+   * (the file self-executes a DOM bootstrap on import).
+   */
+  it('loadExamplesForExperiment is what both bootstraps call, and it filters', () => {
+    const railway = loadExamplesForExperiment(examplesJson, 'railway');
+    const pump = loadExamplesForExperiment(examplesJson, 'pump');
+    expect(railway.some((e) => e.id === 'weichenstrasse-template')).toBe(true);
+    expect(pump.some((e) => e.id === 'weichenstrasse-template')).toBe(false);
+    expect(railway.length).toBe(pump.length + 1);
+    // …and it still validates: a malformed file is a load error, not a silent empty library.
+    expect(() => loadExamplesForExperiment({ version: 1, examples: [{}] }, 'railway')).toThrow();
   });
 });

@@ -3,7 +3,8 @@
  * plus the pure-logic half of the examples library (§10.3): category grouping, lookup, and
  * turning an example into a runnable editor buffer.
  */
-import type { ExampleSpec, LocalizedText } from './types';
+import { EXAMPLE_EXPERIMENTS } from './types';
+import type { ExampleExperiment, ExampleSpec, LocalizedText } from './types';
 import {
   asBoolean,
   asInt,
@@ -61,7 +62,8 @@ export function loadExamples(json: unknown): ExampleSpec[] {
   return raw.map((rawExample, i) => {
     const path = `examples[${i}]`;
     const rec = asRecord(rawExample, path);
-    noExtraKeys(rec, path, ['id', 'category', 'title', 'body', 'awl', 'source', 'starter']);
+    noExtraKeys(rec, path,
+                ['id', 'category', 'title', 'body', 'awl', 'source', 'starter', 'experiment']);
     const id = asString(rec['id'], `${path}.id`);
     if (seen.has(id)) fail(`${path}.id`, `duplicate example id "${id}"`);
     seen.add(id);
@@ -73,6 +75,9 @@ export function loadExamples(json: unknown): ExampleSpec[] {
       awl: asString(rec['awl'], `${path}.awl`),
       source: asString(rec['source'], `${path}.source`),
     };
+    if (rec['experiment'] !== undefined) {
+      example.experiment = oneOf(rec['experiment'], `${path}.experiment`, EXAMPLE_EXPERIMENTS);
+    }
     if (rec['starter'] !== undefined) {
       example.starter = asBoolean(rec['starter'], `${path}.starter`);
       if (example.starter) {
@@ -97,6 +102,33 @@ export function starterExample(examples: readonly ExampleSpec[]): ExampleSpec | 
     if (example.starter === true) return example;
   }
   return null;
+}
+
+/**
+ * The library as ONE experiment sees it: everything untagged (the operand-neutral majority)
+ * plus the entries tagged for this experiment. An untagged library therefore looks identical
+ * to both experiments, which is why tagging is the exception and not the rule.
+ */
+export function examplesForExperiment(
+  examples: readonly ExampleSpec[],
+  experiment: ExampleExperiment,
+): ExampleSpec[] {
+  return examples.filter((e) => e.experiment === undefined || e.experiment === experiment);
+}
+
+/**
+ * Parse AND filter in one call — the whole of what an experiment's bootstrap does with
+ * `examples.json`.
+ *
+ * It exists as one function because the two-step form was got wrong once: the railway
+ * bootstrap parsed the file and handed the UNFILTERED list to the shell, so the railway
+ * offered the pump-only entries as well. With one call there is no step left to forget.
+ */
+export function loadExamplesForExperiment(
+  json: unknown,
+  experiment: ExampleExperiment,
+): ExampleSpec[] {
+  return examplesForExperiment(loadExamples(json), experiment);
 }
 
 /** Tolerant variant for optional data: `[]` when the file is absent. */

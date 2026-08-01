@@ -7,7 +7,7 @@
  * (ARCHITECTURE.md §4/§7.1); nothing in `src/` outside this folder imports this file.
  *
  * Geometry is a deliberate simplification of the documented Gleisplan
- * (`docs/research/gleisplan.md`, 960 × 540 pt space): the two main rings become rounded
+ * (`reference/research/gleisplan.md`, 960 × 540 pt space): the two main rings become rounded
  * rectangles, the Wendeschleife a circle, station tracks straight lanes. Node/switch/reed
  * names and coordinates are the documented ones so the rendering is recognisable, but:
  *
@@ -454,7 +454,7 @@ export function createDevTrackplan(): TrackplanFile {
     if (spec) switches.push(spec);
   }
 
-  // ── reeds: documented positions (docs/research/gleisplan.md §2/§3) ──
+  // ── reeds: documented positions (reference/research/gleisplan.md §2/§3) ──
   const reedPoints: [string, Vec2, boolean][] = [
     ['xR01BH1G1', v(373.7, 525.2), true],
     ['xR02BH1G1', v(607.6, 525.2), true],

@@ -1,6 +1,6 @@
 /**
  * §9.4 regression: the reported "train outside the baseboard at cycle 1454 / 72.7 s" case,
- * run from the actual Gruppe A solution (Claude_work/gruppeA.txt, gitignored, TEST TIME
+ * run from the actual Gruppe A solution (reference/Claude_work/gruppeA.txt, gitignored, TEST TIME
  * ONLY — skips cleanly when absent, nothing is bundled or committed).
  *
  * What the report describes is a RENDERING escape: at that cycle the PLANT state is a normal

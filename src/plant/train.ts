@@ -60,6 +60,9 @@ export class Train {
   private _derailed = false;
   /** Set after a buffer hit: blocks further motion into the buffer until reversal. */
   private bufferBlock: { edgeId: string; dir: 1 | -1 } | null = null;
+  /** Arc length covered by the last `step`, mm — an observation of the motion above, never an
+   *  input to it (§6.3: rendering-only data must not feed back). */
+  private travelMm = 0;
 
   constructor(graph: TrackGraph, strictDerail: boolean) {
     this.graph = graph;
@@ -91,6 +94,12 @@ export class Train {
     return this.senseCommand;
   }
 
+  /** Arc length actually covered by the last `step`, mm — 0 when standing, and short of the
+   *  commanded travel when a buffer or a strict derail cut the step off. */
+  get lastStepTravelMm(): number {
+    return this.travelMm;
+  }
+
   state(): TrainState {
     return {
       edgeId: this.edgeId,
@@ -119,6 +128,7 @@ export class Train {
   }
 
   step(dtMs: number, deps: TrainStepDeps): void {
+    this.travelMm = 0;
     if (this._derailed) return;
     const { positionOf, emit, nowMs } = deps;
     const dtS = dtMs / 1000;
@@ -151,6 +161,7 @@ export class Train {
       this.speedMmS = 0;
     }
 
+    this.travelMm = this.speedMmS * dtS;
     if (this.speedMmS > 0) {
       this.offsetMm += this.dirSign * this.speedMmS * dtS;
       this.resolveTransitions(positionOf, emit, nowMs);
@@ -188,6 +199,7 @@ export class Train {
 
       if (res.kind === 'buffer') {
         // Hard stop at the buffer (§5.3).
+        this.travelMm -= overshootMm;
         this.offsetMm = this.dirSign > 0 ? len : 0;
         this.bufferBlock = { edgeId: this.edgeId, dir: this.dirSign };
         this.speedMmS = 0;
@@ -198,6 +210,7 @@ export class Train {
       if (res.trailedMismatch === true && res.trailedSwitchId !== undefined) {
         emit({ t: nowMs, type: 'switchTrailed', switchId: res.trailedSwitchId });
         if (this.strictDerail) {
+          this.travelMm -= overshootMm;
           this.offsetMm = this.dirSign > 0 ? len : 0;
           this.speedMmS = 0;
           this.effTargetMmS = 0;
