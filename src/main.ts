@@ -41,9 +41,19 @@ import type { TrackplanFile, TrainStartSpec } from './plant';
 import { SceneManager, startSpecForTrack, startTrackOf, startTrackOptions } from './scene';
 import type { CameraMode, StartTrackOption, StartTrackRef } from './scene';
 import { bootstrapPump } from './pumpBootstrap';
-import { App, getLocale, initLocale, readStoredExperiment, t } from './ui';
+import {
+  App,
+  SceneEditorPanel,
+  getLocale,
+  initLocale,
+  readEditorFlag,
+  readStoredExperiment,
+  t,
+  triggerDownload,
+} from './ui';
 import type {
   CheckRunReport,
+  OracleSwitchIndexFile,
   PedagogyHost,
   ProgramLoadOutcome,
   SeatedTrack,
@@ -624,6 +634,42 @@ function bootstrapRailway(parent: HTMLElement): void {
     });
     host.setRunning(false);          // start paused: timeScale 0, but the loop keeps rendering
     driver.start();
+
+    // ── scene editor (owner tool, ?editor=1 — docs/DESIGN_SCENE_EDITOR.md) ────────────
+    // Mounted here, not in App: with the flag off this whole block is dead and the shipped
+    // shell is untouched. Needs a live scene (picking) and the trackplan (the draft).
+    if (scene !== null && readEditorFlag(globalThis.location?.search ?? '')) {
+      const editorScene = scene;
+      const editorPanel = new SceneEditorPanel({
+        trackplan: stack.trackplan,
+        oracleIndex: dataFile('oracleSwitchIndex.json') as OracleSwitchIndexFile,
+        download: triggerDownload,
+        onSelectionHighlight: (id) => attempt(() => editorScene.highlight('switch', id)),
+      });
+      app.canvas.parentElement?.appendChild(editorPanel.element);
+
+      // Click = pointerdown/up pair that barely moved; a real orbit drag must NOT pick
+      // (OrbitControls shares this canvas).
+      let downAt: { x: number; y: number } | null = null;
+      app.canvas.addEventListener('pointerdown', (ev) => {
+        downAt = { x: ev.clientX, y: ev.clientY };
+      });
+      app.canvas.addEventListener('pointerup', (ev) => {
+        const start = downAt;
+        downAt = null;
+        if (start === null) return;
+        const dx = ev.clientX - start.x;
+        const dy = ev.clientY - start.y;
+        if (dx * dx + dy * dy > 25) return;               // > 5 px: an orbit drag
+        const rect = app.canvas.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const ndc = {
+          x: ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+          y: -(((ev.clientY - rect.top) / rect.height) * 2 - 1),
+        };
+        editorPanel.selectSwitch(safe(() => editorScene.pickSwitchAt(ndc), null));
+      });
+    }
   }
 
   app.refresh();

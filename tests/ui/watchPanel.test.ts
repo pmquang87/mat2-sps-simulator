@@ -43,6 +43,12 @@ const LAYOUT: WatchSectionSpec[] = [
       { kind: 'bit', address: { kind: 'bit', area: 'E', byte: 1, bit: 0 }, name: 'Schalter1' },
     ],
   },
+  // A byte row like the student-flag section ships them: displayed as "MB 10", no name.
+  {
+    titleKey: 'watch.section.student',
+    open: true,
+    rows: [{ kind: 'byteBits', area: 'M', byte: 10 }],
+  },
   // A section with no match must disappear entirely (its <details> hides).
   { titleKey: 'watch.section.timers', open: true, rows: [{ kind: 'timer', n: 10 }] },
 ];
@@ -51,6 +57,7 @@ interface Harness {
   root: FakeElement;
   filter: FakeElement;
   rowByName(name: string): FakeElement;
+  rowByAddress(address: string): FakeElement;
   sections(): FakeElement[];
 }
 
@@ -73,6 +80,15 @@ async function build(): Promise<Harness> {
       if (row === undefined) throw new Error(`no watch-row named ${name}`);
       return row;
     },
+    rowByAddress(address: string): FakeElement {
+      const row = walk(root).find(
+        (n) =>
+          n.className.split(/\s+/).includes('watch-row') &&
+          n.childNodes[1]?.textContent === address,
+      );
+      if (row === undefined) throw new Error(`no watch-row addressed ${address}`);
+      return row;
+    },
     sections(): FakeElement[] {
       return walk(root).filter((n) => n.tagName === 'details');
     },
@@ -92,19 +108,19 @@ describe('WatchPanel filter — attribute half', () => {
     // assertions can only fail because filtering changed something.
     expect(h.rowByName('S1').hidden).toBe(false);
     expect(h.rowByName('Schalter1').hidden).toBe(false);
-    expect(h.sections().map((s) => s.hidden)).toEqual([false, false]);
+    expect(h.sections().map((s) => s.hidden)).toEqual([false, false, false]);
 
     type(h.filter, 'Schalter');
     expect(h.rowByName('Schalter1').hidden).toBe(false);
     expect(h.rowByName('S1').hidden).toBe(true);
-    // the timer section has no match: it hides as a whole
-    expect(h.sections().map((s) => s.hidden)).toEqual([false, true]);
+    // the byte and timer sections have no match: they hide as a whole
+    expect(h.sections().map((s) => s.hidden)).toEqual([false, true, true]);
 
     // Clearing restores everything (round-trip control).
     type(h.filter, '');
     expect(h.rowByName('S1').hidden).toBe(false);
     expect(h.rowByName('Schalter1').hidden).toBe(false);
-    expect(h.sections().map((s) => s.hidden)).toEqual([false, false]);
+    expect(h.sections().map((s) => s.hidden)).toEqual([false, false, false]);
   });
 
   it('matches case-insensitively and by address text', async () => {
@@ -118,6 +134,30 @@ describe('WatchPanel filter — attribute half', () => {
     type(h.filter, 'e 0.0');
     expect(h.rowByName('S1').hidden).toBe(false);
     expect(h.rowByName('Schalter1').hidden).toBe(true);
+  });
+});
+
+describe('WatchPanel filter — S7-canonical byte spelling', () => {
+  it('finds a byte row by "M 10" as well as by the displayed "MB 10"', async () => {
+    const h = await build();
+    const byteRow = h.rowByAddress('MB 10');
+
+    // Control: visible before any filter — hiding below can only come from the filter.
+    expect(byteRow.hidden).toBe(false);
+
+    // The S7-canonical spelling the practicum uses ("U M 10.0" addresses byte M 10).
+    // Displayed text is "MB 10", so without the alias this matched nothing.
+    type(h.filter, 'M 10');
+    expect(byteRow.hidden).toBe(false);
+    expect(h.rowByName('S1').hidden).toBe(true);      // control: not match-everything
+
+    // Typed-what-you-see keeps working.
+    type(h.filter, 'MB 10');
+    expect(byteRow.hidden).toBe(false);
+
+    // Control: the alias must not pin the row visible under unrelated filters.
+    type(h.filter, 'Schalter');
+    expect(byteRow.hidden).toBe(true);
   });
 });
 

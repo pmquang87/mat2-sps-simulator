@@ -313,6 +313,30 @@ body.is-resizing-row, body.is-resizing-row * { cursor: row-resize !important; us
 .panel-viewport { position: relative; background: #0d1116; }
 .scene-canvas { display: block; width: 100%; height: 100%; }
 
+/* ── scene editor overlay (owner tool, ?editor=1 — DESIGN_SCENE_EDITOR.md §14.3) ────── */
+.scene-editor-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 280px;
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(23, 29, 37, 0.92);          /* --surface-1 at overlay opacity */
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  z-index: 3;
+}
+.scene-editor-info { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.scene-editor-id { margin: 0; font-weight: 600; font-family: ui-monospace, Consolas, monospace; }
+.scene-editor-info p { margin: 0; }
+.scene-editor-evidence { font-size: 11px; color: var(--text-faint); }
+.scene-editor-flips { margin: 0; font-size: 11.5px; color: var(--text-faint); }
+.scene-editor-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
 .banner {
   position: absolute;
   inset: auto 10px 10px 10px;

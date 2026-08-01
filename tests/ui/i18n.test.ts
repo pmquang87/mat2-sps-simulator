@@ -74,6 +74,7 @@ describe('dictionaries', () => {
       'watch.name', 'watch.filter', 'watch.timer', 'watch.q',
       'exercise.points',
       'params.unit.pctPerS', 'params.unit.pct', 'params.unit.s',
+      'editor3d.mapping',            // pure coil→edge notation: 'G → {g}, R → {r}'
     ];
     const allowed = new Set<string>(sameByDesign);
     const identical: string[] = [];

@@ -9,5 +9,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Under CI (the public repo has no reference/, so the oracle and course-file suites
+    // skip by design) every run also writes a jest-shaped JSON summary that
+    // tools/ci-assert-suites.mjs checks against expected count ranges — "green because
+    // half the suite silently skipped" must fail the workflow, not pass it.
+    reporters: process.env.CI === undefined ? ['default'] : ['default', 'json'],
+    outputFile: { json: 'test-results.json' },
   },
 });

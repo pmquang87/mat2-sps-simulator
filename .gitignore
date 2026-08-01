@@ -7,6 +7,8 @@ __pycache__/
 node_modules/
 dist/
 *.local
+# vitest JSON summary, written only under CI (vitest.config.ts) for tools/ci-assert-suites.mjs
+test-results.json
 
 # ── reference/: EVERYTHING local-only lives here and only here ──────────────
 # Course material (PDFs, task .txt files, Variablenliste, videos, photos), the
