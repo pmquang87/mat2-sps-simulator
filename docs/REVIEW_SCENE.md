@@ -1200,3 +1200,74 @@ beider Referenzläufe sind byte-identisch zu vorher.
 **Gepinnt** in `tests/oracle/consistFootprint.oracle.test.ts` (überspringt sauber ohne die lokale
 Lösung): der Zensus mit genau 3 überdeckten gegen > 10 freie Umläufe als
 Nicht-Vakuitäts-Kontrolle, und die Ordnung 259,0 < 261,4 mm, an der die ganze Ablehnung hängt.
+
+## D19 (Nutzermeldung) Gruppe B: Zug biegt am Anfang nicht nach BH3 Gleis 2 ab — Startplatz-Falle, drei Guards geliefert (der dritte im Nachtrag)
+
+Nutzermeldung 2026-08-01: mit der Gruppe-B-Lösung „fährt der Zug am Anfang nicht nach
+BH3 G2 ein, sondern direkt nach BH2". **Lösung und Simulator sind beide korrekt; der
+Startplatz war falsch**, und zwei UX-Fallen haben ihn dorthin gebracht:
+
+1. **Die Gleiswahl setzt in die Gleismitte — hinter den Auslöse-Reed der eigenen Spur.**
+   Auf BH1 G4 (`e43`, 1222,6 mm) ist die Mitte 611,3 mm, der B-NW3-Auslöser `xR03BH1G4`
+   liegt bei 346,8 mm. Von dort feuern die Netzwerke 3/4 in Runde 1 nie, und der Zug läuft
+   durch den C-Bereich direkt nach BH2 G3. Belegt durch ein Drei-Sitze-Experiment über
+   `tests/oracle/scenarioRunner.ts`; der gepinnte §7.1-Aufgabensitz (`e43` @ 100 mm) ist
+   die Kontrolle, die sich korrekt verhält. Tückisch daran: die Chooser-Anzeige „BH1 G4"
+   ist für beide Sitze identisch — nur die Provenienz unterscheidet sie.
+2. **Ein Reload stellte den Editor-Puffer wieder her, den Sitz aber nicht.** F5 setzte die
+   Lok stumm auf den §7.1-Standardstart zurück (`seatedExerciseId` war reine Laufzeit),
+   während die Gruppe-B-Lösung im Editor stehen blieb.
+
+Geliefert (Entwurf samt offener Option: `docs/DESIGN_START_SEAT_GUARD.md`):
+
+- **Sichtbare Sitz-Notiz im ControlPanel** (`controls.seatMismatch`): offene Aufgabe und
+  ein Sitz ohne deren Provenienz → sichtbarer Hinweis unter der Gleiswahl, dass der
+  Live-Lauf von den bewerteten Checks abweichen kann. Nur abgeleiteter Zustand — Notiz =
+  f(vom Host gemeldeter Sitz, offene Aufgabe); die D13-Ein-Zustand-Regel um ein Pixel
+  erweitert. `.start-note[hidden]`-Gegenregel im Stylesheet (die Lektion aus dem
+  WatchPanel-Filter); beide Hälften gepinnt in `tests/ui/controlPanel.test.ts`.
+- **Der Sitz überlebt den Reload** (`mat2sps.seat.v1`, `src/ui/seatStorage.ts`): ein
+  erfolgreicher `setExercise`/`setStartTrack` schreibt den Sitz, der Boot stellt ihn über
+  DIESELBEN gepinnten Auflösungen wieder her (`startForExercise` / `startSpecForTrack`) —
+  D13 per Konstruktion. Lesen ist total (ein kaputter Eintrag kostet die Wiederherstellung,
+  nie den Boot), und eine unbekannte Aufgaben-Id wird VERWORFEN statt auf den Standard
+  aufgelöst — sonst würde die Anzeige eine Provenienz behaupten, die die Anlage nicht hat.
+  Gepinnt in `tests/ui/seatStorage.test.ts`, samt Kontrolle, dass `startForExercise` allein
+  die unbekannte Id sehr wohl auf den Standard auflösen würde.
+- **Gleismitte-Semantik:** blieb im ersten Wurf unangetastet (Owner-Entscheidung
+  vorbehalten); siehe Nachtrag unten.
+
+### Nachtrag (gleicher Tag): Owner-Entscheidung — Guard (a) gebaut, Gleismitte aufgegeben
+
+Der Owner hat noch am 2026-08-01 entschieden: „also do guard (a), ignore the ‚middle of
+the track'". Die Gleiswahl setzt seither auf den **Gleismittelpunkt, stromaufwärts
+gezogen vor den ersten VERDRAHTETEN Reed der Spur** (Marge 100 mm; Boden 100 mm vom
+Gleisende — die §7.1-Sitzkonvention: `e23` @ 105 mm, `e43` @ 100 mm; 100 mm = 20× der
+Schließradius `reedWindowMm/2`). Richtung −1 gespiegelt (stromaufwärts = höherer Offset).
+Die Regel ist monoton — der Sitz wandert nur stromaufwärts von der Mitte —, also verliert
+kein Gleis einen Reed, der vorher schon vor dem Sitz lag.
+
+Vermessung aller 12 Gleise (über die gelieferten Module, nicht von Hand): 9 Sitze wandern
+(BH1 G1→100, BH1 G2→1093,6 [dir −1], BH1 G3→296,9, **BH1 G4→246,8** [der D19-Fall:
+Mitte 611,3 lag HINTER `xR03BH1G4` @ 346,8], BH2 G1→297,3, BH2 G2→100, BH2 G3→100,
+BH2 G5→100, BH3 G3→160,8); 3 bleiben Mitte (BH2 G4, BH3 G1 ohne verdrahteten Reed auf
+dem eigenen Gleis; BH3 G2, dessen `xR01BH3G2` auf `e9` sitzt, nicht auf `e70`). Kein Sitz
+spawnt in einem Reedfenster (engster Fall BH2 G3: 13,4 mm Abstand vs 5 mm Radius).
+
+Gepinnt in `tests/plant/startTracks.test.ts` als bewusster Doppel-Edit: die wörtliche
+Offset-Tabelle UND die unabhängige Neu-Herleitung aus dem rohen JSON UND die Messung am
+fahrenden Plant (von jedem Sitz feuert jeder vor dem Sitz liegende Spur-Reed; Kontrolle:
+der alte Mittelsitz auf BH1 G4 verfehlt `xR03BH1G4` — wortwörtlich die Nutzermeldung).
+Dazu die unbedingten Invarianten (Sitz strikt im Gleis, nie stromabwärts der Mitte — der
+Boden weicht auf Gleisen kürzer als 200 mm der Mitte, synthetisches Kurzgleis gepinnt) und
+die Kontrolle, dass kein Sitz auf einem geschlossenen Reed spawnt. Die Chooser-Titeltexte
+(EN/DE) versprechen nur noch, dass die Reedkontakte des Gleises „möglichst vor" der Lok
+liegen — nicht die Mitte, und auch nicht mehr, als der 100-mm-Boden halten kann.
+
+**Route-Beweis mit der echten Gruppe-B-Lösung** (Opus-Agent, gemessen über den
+Oracle-Stack, Skript außerhalb des Repos): vom neuen Chooser-Sitz `e43` @ 246,8 mm feuert
+`xR03BH1G4` bei 3,45 s, die Lok erreicht **BH3 G2 (`e70`) bei 48,32 s in Runde 1**, und
+der Lauf BESTEHT den gelieferten §9.4-Erwartungssatz; die Ereignisfolgen (Reeds, Kanten,
+Fahrbefehle) sind mit dem gepinnten §7.1-Sitz (`e43` @ 100 mm) identisch. Kontrolle: der
+alte Mittelsitz (611,3 mm) erreicht in Runde 1 kein BH3-Reed, fährt zuerst BH2 G3 an
+(35,42 s — wortwörtlich die Nutzermeldung) und FÄLLT durch den Erwartungssatz.

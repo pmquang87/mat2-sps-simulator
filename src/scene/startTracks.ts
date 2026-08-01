@@ -144,10 +144,32 @@ export function startTrackOptions(tp: TrackplanFile): StartTrackOption[] {
   return out;
 }
 
+/** Upstream gap the seat keeps to the lane's first wired reed, and the floor/ceiling the
+ *  seat keeps from the lane ends. 100 mm is the §7.1 seat convention (the pinned starts
+ *  sit at `e23` @ 105 mm and `e43` @ 100 mm from their lane start) and 20× the reed
+ *  closure radius (`reedWindowMm / 2` = 5 mm on the shipped plan); that every shipped
+ *  seat spawns with all its lane reeds OPEN is a property of the data, pinned per lane
+ *  in `tests/plant/startTracks.test.ts`, not a consequence of the constants alone. */
+const SEAT_REED_MARGIN_MM = 100;
+const SEAT_END_CLEARANCE_MM = 100;
+
 /**
- * Where the loco stands when the student picks this track: the MIDDLE of the lane's edge,
- * facing the IU direction. `null` for a track that is not on the board — the caller then
- * leaves the loco where it is (`Plant.setStart` would reject the spec anyway).
+ * Where the loco stands when the student picks this track: the mid-lane point pulled
+ * UPSTREAM of the lane's first WIRED reed, facing the IU direction (D19 guard (a), owner
+ * decision 2026-08-01 — the blind mid-lane seat on BH1 G4 stood past `xR03BH1G4`, the
+ * B-NW3 trigger, so the Gruppe B intro silently skipped BH3 G2 on lap 1).
+ *
+ * The rule, per travel direction: seat = mid pulled back to `firstWiredReed − margin`
+ * (direction `-1`: mirrored, upstream is the HIGHER offset), floored 100 mm from the lane
+ * end. It is monotone — the seat only ever moves upstream from mid — so a reed the old
+ * mid seat had ahead stays ahead; only reeds between the new seat and mid change from
+ * "skipped" to "fired on departure". A lane whose first wired reed sits inside the floor
+ * (an arrival reed ~50 mm from the lane start: BH1 G1, BH2 G2, BH2 G5) keeps that reed
+ * behind the seat exactly like the pinned §7.1 seats do; a lane with no wired reed on its
+ * own edge stays mid-lane. Unwired reed positions are ignored — they drive no E input, so
+ * skipping them is program-invisible. `null` for a track that is not on the board — the
+ * caller then leaves the loco where it is (`Plant.setStart` would reject the spec anyway).
+ * Pinned per lane, with driven-plant measurements, in `tests/plant/startTracks.test.ts`.
  */
 export function startSpecForTrack(
   tp: TrackplanFile,
@@ -157,9 +179,28 @@ export function startSpecForTrack(
     (o) => o.stationKey === ref.stationKey && o.laneKey === ref.laneKey,
   );
   if (option === undefined) return null;
+  const mid = option.lengthMm / 2;
+  const wired = tp.reeds.filter((r) => r.wired && r.edgeId === option.edgeId);
+  let offsetMm = mid;
+  if (wired.length > 0) {
+    // The floor yields to mid on a lane shorter than 2× the clearance: a bare 100 mm
+    // floor would push such a seat DOWNSTREAM of mid (or off the edge entirely) and
+    // could re-skip a reed the mid seat had ahead — the exact defect this rule removes.
+    // With `min(clearance, mid)` the invariant is unconditional: seat ≤ mid (direction
+    // -1: seat ≥ mid) and 0 < seat < length on every input, not only the shipped plan.
+    offsetMm = option.direction === 1
+      ? Math.max(
+          Math.min(mid, Math.min(...wired.map((r) => r.offsetMm)) - SEAT_REED_MARGIN_MM),
+          Math.min(SEAT_END_CLEARANCE_MM, mid),
+        )
+      : Math.min(
+          Math.max(mid, Math.max(...wired.map((r) => r.offsetMm)) + SEAT_REED_MARGIN_MM),
+          Math.max(option.lengthMm - SEAT_END_CLEARANCE_MM, mid),
+        );
+  }
   return {
     edgeId: option.edgeId,
-    offsetMm: option.lengthMm / 2,
+    offsetMm,
     direction: option.direction,
   };
 }

@@ -183,6 +183,7 @@ mat2_sps/
 │  │  ├─ index.ts                   public API surface of ui
 │  │  ├─ App.ts                     layout shell: 3D viewport + side panels, DE/EN toggle, experiment switcher
 │  │  ├─ experiment.ts              ExperimentId, storage key, editorStorageKeyFor, switchExperiment (§13.1)
+│  │  ├─ seatStorage.ts             seat reload persistence: parse/serialize + pinned restore rules (§10.1, D19)
 │  │  ├─ pumpProfile.ts             buildPumpProfile / parameter host / plant-control strip / watch layout (§13)
 │  │  ├─ editor/
 │  │  │  ├─ EditorPanel.ts          CodeMirror 6 instance, load-to-PLC button, dirty state
@@ -191,7 +192,7 @@ mat2_sps/
 │  │  │  ├─ completion.ts           autocompletion fed by SymbolTable (mirrors Atom+variablen.txt)
 │  │  │  └─ lint.ts                 CM6 lint source adapter over core Diagnostics
 │  │  ├─ panels/
-│  │  │  ├─ ControlPanel.ts         run/pause/reset, start track (Gruppe A/B), time scale, scan interval, Notaus button, camera mode
+│  │  │  ├─ ControlPanel.ts         run/pause/reset, start-track chooser (all station tracks, §10.1 seat rule) + D19 seat note, time scale, scan interval, Notaus button, camera mode
 │  │  │  ├─ ExercisePanel.ts        exercise browser, network list, task text DE/EN, check results
 │  │  │  ├─ HintPanel.ts            progressive hint reveal (level gating, "show next hint")
 │  │  │  ├─ ExamplesPanel.ts        examples library browser (read-only AWL snippets, copy button)
@@ -1839,13 +1840,31 @@ lacks, per video_design.md) plus graded help, but never task answers.
   (Bahnhof + Gleis, two native selects), placed next to Reset because both put the plant into
   a defined starting state. It is not restricted to the two exercise starts: it offers every
   station track the trackplan yields (`deriveStations`, i.e. BH1 G1–G4, BH2 G1–G5, BH3 G1–G3)
-  and seats the loco in the MIDDLE of the chosen track via host `setStartTrack`. Exercise
-  re-seats are unchanged — opening a network still seats the pinned §7.1 `exerciseStarts`
-  offset, because that is what the graded check run and the oracle suites replay.
+  and seats the loco at the mid-lane point pulled UPSTREAM of the lane's first wired reed via
+  host `setStartTrack` (D19 guard (a), owner decision 2026-08-01 — the blind mid-lane seat on
+  BH1 G4 stood past `xR03BH1G4`, the B-NW3 trigger, and the Gruppe B intro silently skipped
+  BH3 G2 on lap 1). Exercise re-seats are unchanged — opening a network still seats the
+  pinned §7.1 `exerciseStarts` offset, because that is what the graded check run and the
+  oracle suites replay.
   - Seat resolution: `src/scene/startTracks.ts` (pure over the trackplan, beside
     `deriveStations` because it is the same derivation one step further). `startSpecForTrack`
-    yields `{ edgeId: the lane's primary edge, offsetMm: length/2, direction: iuTravelSign }`,
-    validated by the existing `Plant.setStart` — a rejected spec leaves the loco untouched.
+    yields `{ edgeId: the lane's primary edge, offsetMm: see the seat rule below, direction:
+    iuTravelSign }`, validated by the existing `Plant.setStart` — a rejected spec leaves the
+    loco untouched.
+  - **Seat rule** (per travel direction): `offsetMm = clamp(min(length/2, firstWiredReed −
+    100 mm), ≥ 100 mm)`; a `direction: -1` lane mirrors (upstream is the higher offset). The
+    100 mm figures are the §7.1 seat convention (`e23` @ 105 mm, `e43` @ 100 mm) and 20× the
+    reed closure radius (`reedWindowMm/2`); that every shipped seat spawns with its lane
+    reeds OPEN is pinned per lane in the tests (tightest shipped case: BH2 G3, 13,4 mm gap),
+    not a consequence of the constants alone. The floor yields to mid on a lane shorter
+    than 2× the clearance, which makes the rule monotone UNCONDITIONALLY — the seat only
+    moves upstream from mid, so no reed the old mid seat had ahead is ever lost; lanes
+    whose FIRST wired reed is an unprotectable ~50 mm arrival reed (BH1 G1, BH2 G2, BH2 G5)
+    keep that reed behind the seat exactly like the pinned §7.1 seats, and lanes with no wired reed on
+    their own edge (BH2 G4, BH3 G1, BH3 G2) stay mid-lane. Unwired reed positions are
+    ignored — they drive no E input. Pinned per lane (literal offsets + independent raw-json
+    re-derivation) and MEASURED (every ahead-reed fires from its seat; the retired mid seat
+    on BH1 G4 misses its trigger reed as the control) in `tests/plant/startTracks.test.ts`.
   - Options come sorted for READING, not in reed-declaration order: stations BH1→BH3, tracks
     G1→Gn numerically (the derivation order put G2 first, so "pick a Bahnhof" seated its G2 —
     user report 2026-08-01). Two lanes are dead ends whose IU sense runs into a buffer
@@ -1867,6 +1886,27 @@ lacks, per video_design.md) plus graded help, but never task answers.
   screen. That single-state rule is the D13 guard: the live seat can never disagree with the
   network the student is reading, nor with the check run for it. Choosing a track drops the
   exercise provenance, so re-opening that network seats its own start again.
+- Two guards cover that rule's blind spots (user report 2026-08-01, REVIEW_SCENE.md D19: a
+  mid-lane chooser seat on BH1 G4 sits PAST the B-NW3 trigger reed `xR03BH1G4`, and the
+  station/track display cannot distinguish it from the pinned Gruppe B seat on the same lane):
+  - **Seat-mismatch note** (`controls.seatMismatch`, `.start-note` under the chooser): while
+    an exercise network is open and the host-reported seat does not carry that exercise's
+    provenance (chooser pick, refused re-seat, plain-line seat), a visible note says the live
+    run can differ from the graded checks. Derived state only — note = f(host seat, open
+    exercise), never a click; the `.start-note[hidden]` counter-rule ships with the class and
+    both halves are pinned in `tests/ui/controlPanel.test.ts` (the §10.4 WatchPanel lesson).
+  - **Reload persistence** (`mat2sps.seat.v1`, `ui/seatStorage.ts`): the editor buffer
+    survives a reload (§7.4), so the seat does too. A successful `setExercise` /
+    `setStartTrack` writes `{kind: 'exercise' | 'track', …}`; boot re-applies the entry
+    through the SAME pinned resolutions (`startForExercise` / `startSpecForTrack`), so a
+    restored seat is byte for byte one the host could have produced — D13 by construction.
+    Reading is total (a malformed entry costs the restore, never the boot), and an exercise
+    id the trackplan does not pin is REJECTED rather than resolved to the default, which
+    would let the chooser claim a provenance the plant does not have
+    (`tests/ui/seatStorage.test.ts`, with the control that the bare resolution would default).
+  - The third guard — seating the chooser upstream of a lane's first wired reed — was
+    accepted by the owner on 2026-08-01 ("ignore the middle-of-the-track contract") and is
+    the seat rule above; decision history in `docs/DESIGN_START_SEAT_GUARD.md`.
 - Network view: official DE task text with EN translation below (both always available
   regardless of UI locale — the DE text is exam-relevant); `symbolNotes` callouts for the
   documented text↔symbol mismatches; "Run checks" button arms the `BehaviorChecker` for

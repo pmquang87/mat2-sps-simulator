@@ -4,8 +4,9 @@
  * of §10.3.
  *
  * The start-track chooser (Bahnhof + Gleis, next to Reset because both put the plant into a
- * defined starting state) seats the loco in the middle of any station track the trackplan
- * yields (§10.1). It renders the SEAT THE HOST REPORTS, never its own click: opening a
+ * defined starting state) seats the loco on any station track the trackplan yields, at the
+ * §10.1 seat rule's offset — upstream of the track's first wired reed where possible (D19
+ * guard (a)). It renders the SEAT THE HOST REPORTS, never its own click: opening a
  * Gruppe A/B network re-seats the loco too (§7.1 `exerciseStarts`), and a host that refuses
  * a seat must leave the previous one on screen — D13.
  *
@@ -85,7 +86,8 @@ export interface ControlPanelOptions {
   /** Station tracks the chooser offers (`scene/startTracks.ts`), trackplan order. Empty
    *  disables the chooser — there is nothing to seat on. */
   startTracks: readonly StartTrackOption[];
-  /** Seat the loco in the middle of this station track (§10.1). Resets the plant, so the
+  /** Seat the loco on this station track at the §10.1 seat rule's offset — upstream of
+   *  the track's first wired reed where possible. Resets the plant, so the
    *  shell treats it like the Reset button. */
   onStartTrackChange: (ref: StartTrackRef) => void;
   onLabelsChange: (visible: boolean) => void;
@@ -135,6 +137,7 @@ export class ControlPanel {
   private readonly cameraLegend: HTMLElement;
   private readonly cameraButtons = new Map<CameraMode, HTMLButtonElement>();
   private readonly startField: HTMLElement;
+  private readonly startNote: HTMLElement;
   private readonly stationLabel: HTMLElement;
   private readonly stationSelect: HTMLSelectElement;
   private readonly laneLabel: HTMLElement;
@@ -165,6 +168,9 @@ export class ControlPanel {
   /** The seat the panel currently DISPLAYS. Written only by `setSeatedTrack`, i.e. by the
    *  host status — never by a click (D13: the display may not disagree with the plant). */
   private seatedTrack: SeatedTrack | null = null;
+  /** Exercise whose network is open in the ExercisePanel; `null` when none is. Only used
+   *  to derive the D19 mismatch note — never to move or conclude a seat. */
+  private openExerciseId: string | null = null;
   private inputAddresses: readonly BitAddress[] = [];
   private readonly forcedInputs = new Set<number>();
 
@@ -247,6 +253,11 @@ export class ControlPanel {
       attrs: { role: 'group', 'aria-label': t('controls.startTrack') },
       children: [station.wrapper, lane.wrapper],
     });
+    // D19 mismatch note: "Run checks" replays the OPEN exercise's pinned start, and the
+    // station/track display alone cannot distinguish a chooser seat from the pinned seat
+    // on the SAME lane — so a lost provenance must say so visibly, not in a tooltip.
+    this.startNote = el('p', { className: 'start-note', attrs: { role: 'status' } });
+    this.startNote.hidden = true;
     this.renderLanes(this.stationKeys()[0] ?? '', '');
 
     this.labelsToggle = el('input', { attrs: { type: 'checkbox' } });
@@ -308,7 +319,10 @@ export class ControlPanel {
         // Next to Reset on purpose: both put the plant back to a defined starting state.
         options.showStartTrack === false
           ? null
-          : el('div', { className: 'control-group', children: [this.startField] }),
+          : el('div', {
+              className: 'control-group control-start',
+              children: [this.startField, this.startNote],
+            }),
         el('div', { className: 'control-group', children: [scan.wrapper, speed.wrapper] }),
         el('div', {
           className: 'control-group',
@@ -373,6 +387,7 @@ export class ControlPanel {
    */
   setSeatedTrack(seat: SeatedTrack | null): void {
     this.seatedTrack = seat;
+    this.updateSeatNote();
     this.startField.title = seat?.exerciseId === undefined
       ? t('controls.startTrackTitle')
       : `${t('controls.startTrackTitle')} — ${t('controls.startTrackFromExercise')}`;
@@ -383,6 +398,31 @@ export class ControlPanel {
     }
     this.stationSelect.value = seat.stationKey;
     this.renderLanes(seat.stationKey, seat.laneKey);
+  }
+
+  /**
+   * Which exercise's network is open in the ExercisePanel (`null` when none). Combined
+   * with the HOST-reported seat provenance this drives the D19 mismatch note: "Run
+   * checks" replays the open exercise's §7.1 pinned start, so a live seat without that
+   * provenance means the live run can differ from the graded checks — visibly, not in a
+   * tooltip, because the same station/track label can name both seats (a chooser BH1 G4
+   * reads exactly like the pinned Gruppe B seat).
+   */
+  setOpenExercise(exerciseId: string | null): void {
+    this.openExerciseId = exerciseId;
+    this.updateSeatNote();
+  }
+
+  /** Derived state only (D13 extended by one pixel): note = f(host seat, open exercise).
+   *  A plain-line seat (`null`) mismatches too — the loco is not on ANY pinned start. */
+  private updateSeatNote(): void {
+    const hidden = this.openExerciseId === null
+      || this.seatedTrack?.exerciseId === this.openExerciseId;
+    this.startNote.hidden = hidden;
+    // Text is written on SHOW and cleared on hide: a `role="status"` live region announces
+    // CONTENT changes, and a bare `hidden` flip with unchanged text is routinely missed by
+    // screen readers — the warning would appear visually and stay silent.
+    this.startNote.textContent = hidden ? '' : t('controls.seatMismatch');
   }
 
   setEnabled(enabled: boolean): void {
@@ -454,6 +494,7 @@ export class ControlPanel {
       button.textContent = t(CAMERA_MODE_KEYS[mode]);
     }
     this.startField.setAttribute('aria-label', t('controls.startTrack'));
+    this.updateSeatNote();                 // rewrites the note text in the new locale
     this.stationLabel.textContent = t('controls.startStation');
     this.stationSelect.title = t('controls.startStationTitle');
     this.laneLabel.textContent = t('controls.startLane');

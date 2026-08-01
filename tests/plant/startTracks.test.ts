@@ -3,8 +3,10 @@
  *
  * Two claims are pinned here, both on the SHIPPED trackplan:
  *
- * 1. **Seat maths** — every choosable track puts the loco on that lane's edge, at half the
- *    edge length, and `Plant.setStart` accepts all of them (train on rail, not derailed).
+ * 1. **Seat maths** — every choosable track puts the loco on that lane's edge, at the
+ *    mid-lane point pulled UPSTREAM of the lane's first wired reed (D19 guard (a), owner
+ *    decision 2026-08-01 — the mid-lane seat on BH1 G4 sat past the B-NW3 trigger reed),
+ *    and `Plant.setStart` accepts all of them (train on rail, not derailed).
  * 2. **Facing** — from EVERY seat, `Speed1IU` drives the train around the layout in the same
  *    plan-wise rotational sense as it does from the delivered Gruppe A seat. That is the
  *    falsifiable core of the feature: a seat whose `direction` were wrong would drive
@@ -111,13 +113,42 @@ describe('choosable start tracks (scene/startTracks.ts)', () => {
       .toEqual(['BH2 G5', 'BH3 G1']);
   });
 
-  it('seats the loco at the MIDDLE of the lane edge (0,5 mm), by an independent length', () => {
+  /**
+   * D19 guard (a), owner decision 2026-08-01: the mid-lane seat pulled UPSTREAM of the
+   * lane's first WIRED reed (margin 100 mm), floored 100 mm from the lane ends — the same
+   * convention as the §7.1 exercise seats (pinned at e23 @ 105 mm and e43 @ 100 mm from
+   * their lane start). Two pins that must fail independently:
+   *
+   * - the LITERAL offsets, measured once from the shipped trackplan — moving either the
+   *   rule or the data breaks this table loudly, as a deliberate double edit;
+   * - the same rule re-derived here from the RAW json (raw polyline arc length, raw reed
+   *   list), so the shipped implementation cannot drift from the stated rule unnoticed.
+   */
+  it('seats each lane at its pinned upstream-of-first-wired-reed offset (0,5 mm)', () => {
+    const expected: Record<string, number> = {
+      'BH1 G1': 100,     // xR02BH1G1 @ 49.4 unprotectable → floor (the e23 @ 105 pattern)
+      'BH1 G2': 1093.6,  // dir −1 lane: first reed 993.6, upstream = HIGHER offset
+      'BH1 G3': 296.9,
+      'BH1 G4': 246.8,   // the D19 lane: mid 611.3 sat past xR03BH1G4 @ 346.8
+      'BH2 G1': 297.3,
+      'BH2 G2': 100,     // xR02BH2G2 @ 49.7 unprotectable → floor
+      'BH2 G3': 100,     // reed @ 113.4: 13.4 mm spawn gap > the 5 mm closure radius
+      'BH2 G4': 197.8,   // no wired reed on e100 → mid-lane, unchanged
+      'BH2 G5': 100,     // stub; xR02BH2G5 @ 49.4 unprotectable → floor
+      'BH3 G1': 301.2,   // stub; no wired reed on e72 → mid-lane, unchanged
+      'BH3 G2': 632.6,   // xR01BH3G2 sits on e9, NOT on lane edge e70 → mid-lane
+      'BH3 G3': 160.8,
+    };
     for (const option of options) {
+      const label = `${option.stationKey} ${option.laneKey}`;
       const spec = startSpecForTrack(plan, option);
-      expect(spec, `${option.stationKey} ${option.laneKey}`).not.toBeNull();
+      expect(spec, label).not.toBeNull();
       expect(spec?.edgeId).toBe(option.edgeId);
-      // independent arc length over the raw trackplan polyline — NOT option.lengthMm, which
-      // startSpecForTrack halves itself (comparing those two is a check that cannot fail)
+      expect(Math.abs((spec?.offsetMm ?? 0) - (expected[label] ?? Number.NaN)), label)
+        .toBeLessThan(0.5);
+
+      // independent re-derivation from the RAW json (arc length over the raw polyline —
+      // NOT option.lengthMm — and the raw wired-reed list)
       const edge = plan.edges.find((e) => e.id === option.edgeId);
       expect(edge).toBeDefined();
       let rawMm = 0;
@@ -127,9 +158,68 @@ describe('choosable start tracks (scene/startTracks.ts)', () => {
         const b = pts[i] as { x: number; y: number };
         rawMm += Math.hypot(b.x - a.x, b.y - a.y) * plan.meta.mmPerUnit;
       }
-      expect(Math.abs((spec?.offsetMm ?? 0) - rawMm / 2), `${option.stationKey} ${option.laneKey}`)
-        .toBeLessThan(0.5);
+      const wired = plan.reeds.filter((r) => r.wired && r.edgeId === option.edgeId);
+      let raw = rawMm / 2;
+      if (wired.length > 0) {
+        raw = option.direction === 1
+          ? Math.max(Math.min(rawMm / 2, Math.min(...wired.map((r) => r.offsetMm)) - 100),
+              Math.min(100, rawMm / 2))
+          : Math.min(Math.max(rawMm / 2, Math.max(...wired.map((r) => r.offsetMm)) + 100),
+              Math.max(rawMm - 100, rawMm / 2));
+      }
+      expect(Math.abs((spec?.offsetMm ?? 0) - raw), label).toBeLessThan(0.5);
     }
+  });
+
+  /** The rule's unconditional invariants — on every lane, not only the ones that move:
+   *  the seat stays strictly inside the lane and only ever moves UPSTREAM from mid, so no
+   *  reed the retired mid seat had ahead is ever lost. */
+  it('never seats outside the lane and never moves downstream of mid', () => {
+    for (const option of options) {
+      const label = `${option.stationKey} ${option.laneKey}`;
+      const spec = startSpecForTrack(plan, option) as TrainStartSpec;
+      expect(spec.offsetMm, label).toBeGreaterThan(0);
+      expect(spec.offsetMm, label).toBeLessThan(option.lengthMm);
+      if (option.direction === 1) {
+        expect(spec.offsetMm, label).toBeLessThanOrEqual(option.lengthMm / 2 + 0.001);
+      } else {
+        expect(spec.offsetMm, label).toBeGreaterThanOrEqual(option.lengthMm / 2 - 0.001);
+      }
+    }
+  });
+
+  /**
+   * Synthetic short-lane control (adversarial review of guard (a)): on a lane shorter
+   * than 2× the 100 mm clearance, a BARE floor would push the seat DOWNSTREAM of mid —
+   * out of the invariant above and past a reed the mid seat had ahead. The fixture is a
+   * 180 mm lane with wired reeds at 40 mm (unprotectable) and 95 mm (ahead of mid): the
+   * seat must yield to mid (90 mm), keeping the 95 mm reed ahead. The shipped plan has no
+   * lane under 322 mm, so only a synthetic plan can exercise this branch.
+   */
+  it('yields the floor to mid on a lane shorter than twice the clearance', () => {
+    const shortPlan = {
+      meta: { mmPerUnit: 1 },
+      nodes: [
+        { id: 'n0', kind: 'plain' }, { id: 'n1', kind: 'plain' },
+        { id: 'n2', kind: 'plain' }, { id: 'n3', kind: 'plain' },
+      ],
+      // both edges sweep the same sense about the bbox centre → direction 1 for the lane
+      edges: [
+        { id: 'e0', from: 'n0', to: 'n1', pts: [{ x: 0, y: 200 }, { x: 180, y: 200 }] },
+        { id: 'eS', from: 'n2', to: 'n3', pts: [{ x: 180, y: 0 }, { x: 0, y: 0 }] },
+      ],
+      switches: [],
+      reeds: [
+        { id: 'xR01BH9G1', edgeId: 'eS', offsetMm: 40, wired: true },
+        { id: 'xR02BH9G1', edgeId: 'eS', offsetMm: 95, wired: true },
+      ],
+      start: { edgeId: 'e0', offsetMm: 10, direction: 1 },
+    } as unknown as TrackplanFile;
+    const spec = startSpecForTrack(shortPlan, { stationKey: 'BH9', laneKey: 'G1' });
+    expect(spec).not.toBeNull();
+    expect(spec?.edgeId).toBe('eS');
+    expect(spec?.offsetMm).toBeCloseTo(90, 3);      // mid of 180 — NOT the 100 mm floor
+    expect(spec?.offsetMm ?? 0).toBeLessThanOrEqual(90);  // monotone even here
   });
 
   /**
@@ -160,14 +250,98 @@ describe('choosable start tracks (scene/startTracks.ts)', () => {
       expect(() => plant.setStart(spec), `${option.stationKey} ${option.laneKey}`).not.toThrow();
       const train = plant.snapshot().train;
       expect(train.edgeId).toBe(option.edgeId);
-      expect(train.offsetMm).toBeCloseTo(option.lengthMm / 2, 3);
+      expect(train.offsetMm).toBeCloseTo(spec.offsetMm, 3);
       expect(plant.snapshot().derailed).toBe(false);
+      // D19 guard (a): a fresh seat never spawns ON a closed reed — every wired reed of
+      // the lane starts open (tightest real case: BH2 G3, 13,4 mm gap vs 5 mm radius)
+      const laneReeds = plan.reeds.filter((r) => r.wired && r.edgeId === option.edgeId);
+      for (const reed of laneReeds) {
+        const state = plant.snapshot().reeds.find((s) => s.id === reed.id);
+        expect(state?.closed, `${reed.id} closed at spawn`).toBe(false);
+      }
     }
   });
 
   it('has no track for an unknown station or lane', () => {
     expect(startSpecForTrack(plan, { stationKey: 'BH9', laneKey: 'G1' })).toBeNull();
     expect(startSpecForTrack(plan, { stationKey: 'BH1', laneKey: 'G9' })).toBeNull();
+  });
+
+  /**
+   * D19 guard (a) — the falsifiable core, measured against the driving plant: from every
+   * chooser seat, Speed1IU must FIRE every wired reed of the lane that lies ahead of the
+   * seat, and (control) the retired mid-lane seat on BH1 G4 misses its trigger reed —
+   * which is verbatim the user report ("skips BH3 G2, goes direct to BH2": B-NW3 never
+   * saw xR03BH1G4 on lap 1).
+   */
+  describe('no chooser seat skips a wired reed of its own lane (D19 guard a)', () => {
+    /** 20 s at Speed1 ≈ 1,6 m — enough for the farthest ahead-reed on the shipped plan
+     *  (xR01BH2G1, 1191,6 mm from the BH2 G1 seat) and far short of a full lap, so the
+     *  mid-seat CONTROL below cannot be rescued by the loco coming around again. */
+    function reedsFired(start: TrainStartSpec): Set<string> {
+      const plant = new Plant({ trackplan: plan, seed: 1 });
+      plant.setStart(start);
+      plant.setFahrstromWord(SPEED1_IU);
+      const fired = new Set<string>();
+      for (let i = 0; i < 2000; i += 1) {
+        plant.step(10);
+        for (const event of plant.drainEvents()) {
+          if (event.type === 'reedClosed') fired.add(event.reedId);
+        }
+      }
+      return fired;
+    }
+
+    /** Wired reeds of the lane the IU run still has ahead of the seat. */
+    function reedsAhead(edgeId: string, spec: TrainStartSpec): string[] {
+      return plan.reeds
+        .filter((r) => r.wired && r.edgeId === edgeId)
+        .filter((r) => (spec.direction === 1
+          ? r.offsetMm > spec.offsetMm
+          : r.offsetMm < spec.offsetMm))
+        .map((r) => r.id);
+    }
+
+    const lanesWithAhead = options
+      .map((o) => [o, reedsAhead(o.edgeId, startSpecForTrack(plan, o) as TrainStartSpec)] as const)
+      .filter(([, ahead]) => ahead.length > 0);
+
+    it('covers most lanes — the rule would be vacuous if nothing lay ahead', () => {
+      // 8 of 12 lanes have a wired reed ahead of the seat: three lanes have no wired reed
+      // on their own edge (BH2 G4, BH3 G1, BH3 G2) and the BH2 G5 stub's only wired reed
+      // is an unprotectable arrival reed behind the floor — pinned so a data change surfaces.
+      expect(lanesWithAhead.map(([o]) => `${o.stationKey} ${o.laneKey}`)).toEqual([
+        'BH1 G1', 'BH1 G2', 'BH1 G3', 'BH1 G4',
+        'BH2 G1', 'BH2 G2', 'BH2 G3',
+        'BH3 G3',
+      ]);
+    });
+
+    it.each(lanesWithAhead.map(([o, ahead]) =>
+      [`${o.stationKey} ${o.laneKey}`, o, ahead] as const))(
+      '%s fires every wired lane reed ahead of its seat',
+      (_label, option, ahead) => {
+        const spec = startSpecForTrack(plan, option) as TrainStartSpec;
+        const fired = reedsFired(spec);
+        for (const id of ahead) {
+          expect(fired.has(id), `${id} must fire from the chooser seat`).toBe(true);
+        }
+      },
+    );
+
+    it('CONTROL: the retired mid-lane seat on BH1 G4 misses xR03BH1G4 — the D19 report', () => {
+      const lane = options.find((o) => o.stationKey === 'BH1' && o.laneKey === 'G4');
+      expect(lane).toBeDefined();
+      if (lane === undefined) return;
+      const mid: TrainStartSpec = {
+        edgeId: lane.edgeId,
+        offsetMm: lane.lengthMm / 2,   // 611.3 — past xR03BH1G4 at 346.8
+        direction: lane.direction,
+      };
+      const fired = reedsFired(mid);
+      expect(fired.has('xR03BH1G4')).toBe(false);   // B-NW3 never triggers…
+      expect(fired.size).toBeGreaterThan(0);        // …while the loco demonstrably drives on
+    });
   });
 
   /** D13 display rule: the chooser must be able to name the seat an EXERCISE re-seat took. */
