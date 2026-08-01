@@ -12,6 +12,20 @@ localized diagnostics plus progressive hints while you work. Both official assig
 (Gruppe A and Gruppe B, 11 networks each) ship as an exercise browser with automatic behaviour
 checks. The interface is bilingual: **English by default, German toggle**, persisted locally.
 
+The app carries a **second experiment**: the manual's pump/two-tank teaching example
+(Anleitung IV.2.5.2), switchable in the header. Every AWL instruction the manual introduces —
+binary logic, all five S5 timers, edges, jumps, counters — can be tried against a live plant:
+momentary buttons, level sensors with adjustable thresholds, hand valves, and the water
+rendered in simulation time.
+
+![The pump experiment mid-transfer: the manual's S/R example running, tank A draining into tank B](docs/media/pump-simulator.png)
+
+**▶ How-to video (3:45, both experiments):**
+[howto-mat2-sps.mp4](https://github.com/pmquang87/mat2-sps-simulator/releases/download/v0.2.0/howto-mat2-sps.mp4)
+— loading an example, running it, the start-track chooser, cameras, input forcing and the
+emergency stop on the railway; the experiment switcher, the pump examples, live parameters
+and the hand valves on the pump plant.
+
 There is **no backend**. Everything runs client-side; `npm run build` produces a single
 self-contained `dist/index.html`.
 

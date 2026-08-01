@@ -56,13 +56,9 @@ export function buildPipeRun(args: {
   tube.castShadow = true;
   group.add(tube);
 
-  // Flanges at the corner points make the run read as assembled pipework, not as a hose.
-  const flange = args.bag.add(new TorusGeometry(PUMP_DIM.pipeRadius * 1.5, 0.008, 6, 16));
-  for (const p of args.points) {
-    const ring = new Mesh(flange, args.mats.steelDark);
-    ring.position.copy(p);
-    group.add(ring);
-  }
+  // No corner flanges: a torus dropped unoriented at a bend slices through the tube at an
+  // arbitrary angle (user report 2026-08-01) — decoration that reads as a defect is worse
+  // than none, and orienting one on an elbow is ambiguous (two directions meet there).
 
   const beads = buildFlowBeads({
     name: `${args.name}:flow`,
