@@ -7,10 +7,20 @@
  * offset along the recorded path, so rendering stays smooth between the fixed 10 ms plant
  * steps without ever feeding back into the plant (§5.4).
  *
- * The coaches follow a **path buffer**: the loco's snapshot positions are appended to a
- * directed polyline and each vehicle is placed at a fixed arc-length offset behind the
- * loco. Because the buffer is directed and the head only slides along it, reversing
- * (Sägefahrt) makes the coaches lead correctly instead of folding onto the loco.
+ * The coaches are placed at fixed arc-length offsets on `PlantSnapshot.train.consistPath` — the
+ * track the plant records the consist as standing on (D12/D16). The path is directed and the
+ * consist only slides along it, so reversing (Sägefahrt) makes the coaches lead correctly instead
+ * of folding onto the loco.
+ *
+ * The LOCO's POSITION is not read off that path. It is anchored to `worldPos`, the position the
+ * plant states the loco has (`docs/REVIEW_SCENE.md` D16 Folgearbeit). Path and position describe
+ * the same rail only while the consist is whole: when a program throws a switch out from under its
+ * own coaches, the coaches keep the rail they stand on — a switch may not move a standing vehicle
+ * — while the loco drives on over the new branch, and no single polyline describes both. Reading
+ * the loco off the coaches' path then drew it beside the position the plant published (measured on
+ * the Gruppe A run: 50,7 mm for 36,5 s). Anchored, the drawn separation becomes what it physically
+ * is: a consist the program has split across two branches. Orientation stays on the path for every
+ * vehicle including the loco — see `anchorLoco` for the measurement that decided that.
  */
 import {
   BoxGeometry,
@@ -58,7 +68,6 @@ export interface ConsistWorldPath {
 
 /** How far along the path the frame-flip probe samples, mm. */
 const FLIP_PROBE_MM = 20;
-
 export class TrainVisual {
   readonly object: Group;
 
@@ -141,6 +150,7 @@ export class TrainVisual {
       const dir = front.clone().sub(rear);
       if (dir.lengthSq() < 1e-12) dir.copy(planHeadingToWorld(u.headingRad));
       dir.setY(0).normalize();
+      if (v.group === this.locoGroup) this.anchorLoco(u, alphaMm, centre);
       // the path buffer runs at board level; vehicle origins sit on the rail heads
       centre.y += DIM.railTop * MM;
       v.group.position.copy(centre);
@@ -155,6 +165,41 @@ export class TrainVisual {
         this.cabForward.copy(dir);
       }
     }
+  }
+
+  /**
+   * Moves the loco's centre from the path sample to the pose the PLANT publishes
+   * (`docs/REVIEW_SCENE.md` D16 Folgearbeit). Board level in, board level out — the rail-top lift
+   * is added by the caller for every vehicle alike.
+   *
+   * POSITION only, deliberately. The orientation keeps coming from the same ±0,75 · half-length
+   * chord on the path that every vehicle uses, because the published `headingRad` is the exact
+   * polyline tangent at the loco's offset and that tangent is DISCONTINUOUS where two edges meet:
+   * measured over the Gruppe A run, taking the yaw from it snaps the loco by up to 22,03° in one
+   * 10 ms step (54 steps above 2°, always at an edge entry, offset < 2 mm) and whips the cab
+   * camera anchor by 19,3 mm per step, against 1,36° / 2,90 mm for the chord. The chord is also
+   * what keeps the loco turning like the coaches do. What the anchor is for is the POSITION: that
+   * is what the lag measures and what puts the drawn loco beside its own rail during a tear.
+   *
+   * The smoothing advance is a straight line along the direction of travel rather than a walk
+   * along the path: over one step of travel (≤ 2,8 mm at the top speed of 280 mm/s) the chord
+   * error against the tightest curve on the plan (R = 90,9 mm) is L²/8R ≈ 0,011 mm, whereas a
+   * path walk would follow the COACHES' branch during a tear and give back part of the lag the
+   * anchor removes.
+   *
+   * The advance is the SAME `alphaMm` the coaches slide by, deliberately unclamped: clamping the
+   * loco alone at one step of travel would compress the drawn consist whenever `alphaMs` exceeds
+   * one step (measured against the 50 ms interpolation contract in `tests/scene/train.test.ts`:
+   * loco 2,0 mm against coaches 10,0 mm). `RafDriver` feeds `SimClock.pendingMs`, which is the
+   * accumulator leftover and therefore always under one step, so the anchor's guarantee holds
+   * where it is stated — at the snapshot instant, `alphaMs` = 0, where the lag is exactly 0 —
+   * and between steps the whole consist slides together, as it always did.
+   */
+  private anchorLoco(u: TrainUpdate, alphaMm: number, centre: Vector3): void {
+    centre
+      .copy(u.position)
+      .setY(0)
+      .addScaledVector(planHeadingToWorld(u.headingRad), alphaMm * MM);
   }
 
   /** Forgets the consist orientation (called on plant reset / teleport). */

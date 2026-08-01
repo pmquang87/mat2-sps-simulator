@@ -9,6 +9,7 @@ export * from './exerciseStart';
 export * from './geometry';
 export * from './random';
 export * from './trackGraph';
+export * from './occupiedPath';
 export * from './train';
 export * from './switches';
 export * from './reeds';

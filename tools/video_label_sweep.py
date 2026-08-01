@@ -31,7 +31,7 @@ that all matter:
   3. Label yield per frame is much higher (a switch cluster shows six at once),
      so the dedupe has to work per-frame-region rather than per-clip.
 
-NOTE on resolution: docs/research/video_design.md calls this video 1080p. That is
+NOTE on resolution: reference/research/video_design.md calls this video 1080p. That is
 wrong. yt-dlp reports the source as 1280x720 (max format 136, 841k); there is no
 1080p rendition to fetch. This is the hard ceiling on everything below.
 
@@ -53,7 +53,8 @@ Subcommands
              authoritative symbol list in src/data/variables.json, verdict per
              target switch
 
-Python: needs numpy, pillow and scipy. cv2 is not available and not needed.
+Python: C:\\Users\\pmqua\\.venvs\\notebooklm\\Scripts\\python.exe (numpy, pillow,
+scipy). cv2 is not available and not needed.
 """
 
 from __future__ import annotations

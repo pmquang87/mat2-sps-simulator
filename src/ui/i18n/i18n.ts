@@ -36,7 +36,15 @@ function store(): Storage | null {
 }
 
 function readStoredLocale(): Locale {
-  const raw = store()?.getItem(STORAGE_KEY);
+  // The read is inside the try, not only the storage lookup: some browsers expose
+  // `localStorage` and then throw on ACCESS (Safari private mode, blocked third-party
+  // storage). This runs at module load, so a throw here would be a blank page.
+  let raw: string | null = null;
+  try {
+    raw = store()?.getItem(STORAGE_KEY) ?? null;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
   return isLocale(raw) ? raw : DEFAULT_LOCALE;
 }
 

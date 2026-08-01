@@ -7,6 +7,12 @@
  * failure is surfaced in the UI (banner + status chip) instead of leaving a blank page. The
  * probe is a real effect check, not a claim: the coordinator must survive one physics step
  * before the render loop is started.
+ *
+ * Since the second experiment landed this file also ROUTES: the persisted
+ * `mat2sps.experiment` selects either `bootstrapRailway` below — unchanged, only wrapped in
+ * a function — or the pump bootstrap in `./pumpBootstrap`. Anything unrecognised is the
+ * railway (`readStoredExperiment`), so a corrupted storage value can never leave the student
+ * without an app.
  */
 import {
   EventBus,
@@ -22,7 +28,7 @@ import type { BitAddress, Diagnostic, VariablesFile } from './core';
 import {
   BehaviorChecker,
   ProgressStore,
-  loadExamples,
+  loadExamplesForExperiment,
   loadExercises,
   runTimeoutMsOf,
   starterExample,
@@ -31,14 +37,16 @@ import {
 } from './pedagogy';
 import type { ExampleSpec, ExerciseSpec, KeyValueStore, NetworkSpec } from './pedagogy';
 import { Plant, startForExercise, trackplanForExercise } from './plant';
-import type { TrackplanFile } from './plant';
-import { SceneManager } from './scene';
-import type { CameraMode } from './scene';
-import { App, getLocale, initLocale, t } from './ui';
+import type { TrackplanFile, TrainStartSpec } from './plant';
+import { SceneManager, startSpecForTrack, startTrackOf, startTrackOptions } from './scene';
+import type { CameraMode, StartTrackOption, StartTrackRef } from './scene';
+import { bootstrapPump } from './pumpBootstrap';
+import { App, getLocale, initLocale, readStoredExperiment, t } from './ui';
 import type {
   CheckRunReport,
   PedagogyHost,
   ProgramLoadOutcome,
+  SeatedTrack,
   SimHost,
   SimStatus,
   WatchReader,
@@ -204,8 +212,8 @@ interface LoadedData<T> { value: T | null; reason: string; }
 /**
  * Which exercise the untouched §7.1 `start` belongs to. Gruppe A has no `exerciseStarts`
  * entry precisely because the default start IS its seat (Bahnhof 1 Gleis 1) — asserted in
- * tests/plant/exerciseStart.test.ts — so before the first selection the start-track switch
- * truthfully shows Gruppe A.
+ * tests/plant/exerciseStart.test.ts — so before the first selection the start-track chooser
+ * truthfully reports Gruppe A as the seat's provenance.
  */
 const DEFAULT_START_EXERCISE_ID = 'gruppeA';
 
@@ -219,12 +227,7 @@ function loadData<T>(name: string, parse: (json: unknown) => T): LoadedData<T> {
   }
 }
 
-function bootstrap(): void {
-  initLocale();
-
-  const parent = document.getElementById('app');
-  if (parent === null) throw new Error('#app mount point missing from index.html');
-
+function bootstrapRailway(parent: HTMLElement): void {
   const { stack, failure } = build();
 
   let scene: SceneManager | null = null;
@@ -244,12 +247,62 @@ function bootstrap(): void {
   /** Last source that parsed OK — check runs replay it in a fresh emulator (§10.1). */
   let lastGoodSource: string | null = null;
   /** Exercise the live plant is currently seated for (§7.1 `exerciseStarts`, D13); null
-   *  until the student opens a network, i.e. the plant sits on the §7.1 default start. */
+   *  until the student opens a network, i.e. the plant sits on the §7.1 default start. Also
+   *  cleared by a direct track choice, so re-opening that exercise re-seats the loco. */
   let seatedExerciseId: string | null = null;
+  /** Still on the untouched §7.1 `start` — which IS the Gruppe A seat, so the chooser may
+   *  truthfully report `DEFAULT_START_EXERCISE_ID` as its provenance until something moves. */
+  let seatIsDefault = true;
+  /** Station track the loco stands on; `null` when the seat is not on a derived lane. */
+  let seatedTrack: StartTrackRef | null =
+    stack === null ? null : safe(() => startTrackOf(stack.trackplan, stack.trackplan.start), null);
+  const startTracks: readonly StartTrackOption[] =
+    stack === null ? [] : safe(() => startTrackOptions(stack.trackplan), []);
+
+  /**
+   * Move the live plant onto `start` and put the shell's clock back to zero — the one path
+   * both re-seat routes take (opening an exercise network, §7.1 `exerciseStarts`; choosing a
+   * station track, §10.1). `Plant.setStart` validates first, so a rejected spec leaves the
+   * loco AND the reported seat untouched, and the caller reports "nothing moved".
+   */
+  function reseat(start: TrainStartSpec): boolean {
+    if (stack === null) return false;
+    let seated = false;
+    attempt(() => {
+      stack.plant.setStart(start);          // validates, then re-inits the plant
+      seated = true;
+    });
+    if (!seated) return false;
+    seatedTrack = safe(() => startTrackOf(stack.trackplan, start), null);
+    seatIsDefault = false;
+    attempt(() => stack.coordinator.reset());
+    stack.clock.reset();
+    stack.clock.timeScale = running ? timeScale : 0;
+    return true;
+  }
+
+  /**
+   * The seat the start-track chooser renders. The exercise id is carried only while the seat
+   * really came from an exercise: the untouched §7.1 start IS the Gruppe A seat (asserted in
+   * tests/plant/exerciseStart.test.ts), a direct track choice has no exercise behind it.
+   */
+  function seatedTrackStatus(): SeatedTrack | null {
+    if (seatedTrack === null) return null;
+    const exerciseId = seatedExerciseId ?? (seatIsDefault ? DEFAULT_START_EXERCISE_ID : null);
+    return exerciseId === null
+      ? { ...seatedTrack }
+      : { ...seatedTrack, exerciseId };
+  }
 
   // ── pedagogy data + progress (§10.1–§10.3) ─────────────────────────────────
   const exercisesData = loadData<ExerciseSpec[]>('exercises.json', loadExercises);
-  const examplesData = loadData<ExampleSpec[]>('examples.json', loadExamples);
+  // Filtered for THIS experiment (§13.5): an example tagged `pump` addresses hardware the
+  // railway does not have, so offering it here would hand the student a snippet that cannot
+  // compile against this symbol table. The pump bootstrap filters the same way.
+  const examplesData = loadData<ExampleSpec[]>(
+    'examples.json',
+    (json) => loadExamplesForExperiment(json, 'railway'),
+  );
   const progress = new ProgressStore(browserKeyValueStore(), () => Date.now());
 
   /** First-run editor buffer (§7.4): the example flagged `starter` — deliberately built from
@@ -370,6 +423,7 @@ function bootstrap(): void {
       return stack?.wiring ?? null;
     },
     pedagogy: pedagogyHost,
+    startTracks,
 
     loadProgram(source: string): ProgramLoadOutcome {
       if (stack === null) {
@@ -428,16 +482,23 @@ function bootstrap(): void {
     setExercise(exerciseId: string): boolean {
       if (stack === null || exerciseId === seatedExerciseId) return false;
       const start = startForExercise(stack.trackplan, exerciseId);
-      let seated = false;
-      attempt(() => {
-        stack.plant.setStart(start);        // validates, then re-inits the plant
-        seated = true;
-      });
-      if (!seated) return false;            // rejected spec: loco stayed where it was
+      if (!reseat(start)) return false;     // rejected spec: loco stayed where it was
       seatedExerciseId = exerciseId;
-      attempt(() => stack.coordinator.reset());
-      stack.clock.reset();
-      stack.clock.timeScale = running ? timeScale : 0;
+      return true;
+    },
+
+    /**
+     * Seat the loco in the middle of a chosen station track (§10.1 start-track chooser). This
+     * is NOT an exercise start: the §7.1 `exerciseStarts` offsets stay pinned for the graded
+     * check runs, and choosing a track drops the exercise provenance so re-opening that
+     * network re-seats the loco on its own start again.
+     */
+    setStartTrack(ref: StartTrackRef): boolean {
+      if (stack === null) return false;
+      const start = safe(() => startSpecForTrack(stack.trackplan, ref), null);
+      if (start === null) return false;     // not a track of this board
+      if (!reseat(start)) return false;
+      seatedExerciseId = null;
       return true;
     },
 
@@ -511,7 +572,7 @@ function bootstrap(): void {
         scanIntervalMs: safe(() => stack.coordinator.scanInterval, 50),
         notausActive: snapshot?.notausActive ?? false,
         derailed: snapshot?.derailed ?? false,
-        startExercise: seatedExerciseId ?? DEFAULT_START_EXERCISE_ID,
+        seatedTrack: seatedTrackStatus(),
         programLoaded,
         instructionCount,
         runtimeDiagnostics: safe(() => [
@@ -566,6 +627,15 @@ function bootstrap(): void {
   }
 
   app.refresh();
+}
+
+/** Route to the experiment the student last chose (default: the railway). */
+function bootstrap(): void {
+  initLocale();
+  const parent = document.getElementById('app');
+  if (parent === null) throw new Error('#app mount point missing from index.html');
+  if (readStoredExperiment() === 'pump') bootstrapPump(parent);
+  else bootstrapRailway(parent);
 }
 
 bootstrap();

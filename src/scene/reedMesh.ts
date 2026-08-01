@@ -1,7 +1,7 @@
 /**
  * Reed contact markers (ARCHITECTURE.md §3 `scene/reedMesh.ts`).
  *
- * Reference `docs/research/frames/reedkontakt_scaled.png`: a small glass tube lying between
+ * Reference `reference/research/frames/reedkontakt_scaled.png`: a small glass tube lying between
  * the sleepers, its gold wires bent into two holes in the sleeper bed, and a white sticker
  * with the variable name (`xR02BH1G1`) on the ballast next to the track.
  *
@@ -160,6 +160,8 @@ function buildOne(
     DIM.labelOffset,
     DIM.ballastHeight + DIM.labelPlateThickness,
   );
+  // deconflictPlates retreats a crowded plate towards what it names (D17)
+  plate.userData['anchorWorld'] = pose.position.clone();
   group.add(plate);
 
   const ring = new Mesh(new RingGeometry(16 * MM, 21 * MM, 24), mats.highlight);

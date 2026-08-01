@@ -7,8 +7,8 @@ of the TU Dresden model-railway SPS practicum plant.
 Every switch drive (Weichenantrieb) and reed contact on the plant carries a small
 printed white label with its PLC symbol (e.g. "xW02BH1G4", "xW02D", "xR01A").
 Two walk-along videos were frame-extracted into
-    docs/research/frames/labels_e/   (Einfachweiche.avi, 100 frames)
-    docs/research/frames/labels_d/   (Doppelweiche.avi, 193 frames)
+    reference/research/frames/labels_e/   (Einfachweiche.avi, 100 frames)
+    reference/research/frames/labels_d/   (Doppelweiche.avi, 193 frames)
 
 This tool:
   detect  -- find candidate label regions in every frame, crop + upscale them,
@@ -22,7 +22,7 @@ This tool:
 
 Detection principle
 -------------------
-Measured on docs/research/frames/labels_e/f001.jpg (label xW02BH1G4 in frame):
+Measured on reference/research/frames/labels_e/f001.jpg (label xW02BH1G4 in frame):
 
     region            V mean   V p10   sat mean
     label             225.0    137.0   0.015     <- bright AND near-zero saturation
@@ -37,8 +37,9 @@ printed glyphs punch holes in the mask, so the mask is morphologically closed
 before connected-component labelling, and components are then filtered on size,
 aspect and bbox fill ratio.
 
-Python: needs numpy, pillow and scipy. The project's own .venv carries only pip,
-so run this with a separate interpreter that has the three packages installed.
+Python: needs numpy, pillow, scipy. The project .venv has only pip; use
+    C:\\Users\\pmqua\\.venvs\\notebooklm\\Scripts\\python.exe
+(pillow/numpy/scipy were pip-installed into it for this sweep).
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
 /**
- * §9.4 loadOracle.ts — TEST-TIME-ONLY loader for the AWL solutions in `Claude_work/`
- * (gitignored). Files: Claude_work/gruppeA.txt, Claude_work/gruppeB.txt — neutral names
- * only. If the directory or a file is absent, the oracle suites skip cleanly; nothing
- * under src/ may reference these files.
+ * §9.4 loadOracle.ts — TEST-TIME-ONLY loader for the AWL solutions in
+ * `reference/Claude_work/` (`reference/` is the one gitignored local-only folder). Files:
+ * gruppeA.txt, gruppeB.txt — neutral names only. If the directory or a file is absent, the
+ * oracle suites skip cleanly; nothing under src/ may reference these files.
  *
  * The local solution files are the filled-in course templates (task prose + AWL blocks
  * after each "--Bitte hier programmieren--" marker), so the loader extracts exactly the
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { normalizeSource } from '../../src/core';
 
 function oraclePath(which: 'A' | 'B'): string {
-  return fileURLToPath(new URL(`../../Claude_work/gruppe${which}.txt`, import.meta.url));
+  return fileURLToPath(new URL(`../../reference/Claude_work/gruppe${which}.txt`, import.meta.url));
 }
 
 export function oracleAvailable(which: 'A' | 'B'): boolean {
@@ -36,7 +36,7 @@ export function extractAwlFromTemplate(template: string): string {
   return normalizeSource(template).program;
 }
 
-/** fs read of Claude_work/gruppe<which>.txt, extracted to plain AWL; null if absent. */
+/** fs read of reference/Claude_work/gruppe<which>.txt, extracted to plain AWL; null if absent. */
 export function loadOracleSource(which: 'A' | 'B'): string | null {
   const path = oraclePath(which);
   if (!existsSync(path)) return null;

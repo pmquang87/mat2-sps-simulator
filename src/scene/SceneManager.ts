@@ -30,7 +30,7 @@ import {
   type SceneMaterials,
   type SceneQuality,
 } from './materials';
-import { LabelFactory } from './labels';
+import { LabelFactory, deconflictPlates } from './labels';
 import {
   PlanFrame,
   buildEdgeCurves,
@@ -130,6 +130,9 @@ export class SceneManager {
 
     this.reeds = buildReedVisuals(tp, this.curves, this.mats, this.labels);
     for (const v of this.reeds.values()) this.scene.add(v.object);
+
+    // every label plate exists now — resolve referents whose plates land on each other (D15)
+    deconflictPlates(this.scene);
 
     this.train = buildTrain(this.mats, this.quality);
     this.scene.add(this.train.object);

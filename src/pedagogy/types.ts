@@ -89,6 +89,15 @@ export interface CheckResult {
   detail?: LocalizedText;            // e.g. "switch pulse lasted 4820 ms — expected ≈300 ms"
 }
 
+/**
+ * Which experiment an example belongs to. Declared here rather than imported from `ui/`,
+ * because pedagogy/ must not depend on ui/ (§2 rule 5); the two unions are identical by
+ * construction and structurally assignable, and `tests/pedagogy/loaders.test.ts` pins that.
+ */
+export type ExampleExperiment = 'railway' | 'pump';
+
+export const EXAMPLE_EXPERIMENTS: readonly ExampleExperiment[] = ['railway', 'pump'];
+
 export interface ExampleSpec {
   id: string; category: 'binary' | 'memory' | 'timer' | 'edge' | 'counter' | 'compare' | 'jump' | 'pattern';
   title: LocalizedText; body: LocalizedText;   // explanation
@@ -98,4 +107,9 @@ export interface ExampleSpec {
    *  student-area write targets only (M 10.x – M 20.x, T 10 – T 20, Z 1), so the very first
    *  "Load into PLC" produces no W-RES-001 warning. */
   starter?: boolean;
+  /** Restrict the example to ONE experiment. Absent — the normal case — means the snippet
+   *  runs meaningfully on both plants, which is true for every operand-neutral example the
+   *  Anleitung teaches. Only a snippet that needs plant hardware the other experiment does
+   *  not have (reeds, switch coils) may be tagged. */
+  experiment?: ExampleExperiment;
 }

@@ -2,7 +2,7 @@
  * tools/smooth-trackplan.ts — rewrite `edges[].pts` in `src/data/trackplan.json` as a dense
  * tangent-continuous (G1) polyline, driven by the Gleisplan's own path primitives.
  *
- * WHY A DATA TRANSFORM (defect D9, owner decision in docs/HANDOFF.md). Two independent
+ * WHY A DATA TRANSFORM (defect D9, owner decision in reference/HANDOFF.md). Two independent
  * consumers read `edges[].pts` — `src/plant/geometry.ts` (`Polyline`: drives the train and
  * the reed trigger positions) and `src/scene/trackMesh.ts` (`buildEdgeCurves`: draws the
  * rails). Smoothing only one would float the train beside its own track, so the smoothing

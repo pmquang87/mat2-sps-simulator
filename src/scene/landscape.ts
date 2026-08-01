@@ -1370,6 +1370,8 @@ function buildStations(
         );
       plate.position.y = (DIM.platformHeight + 0.5) * MM;
       plate.rotation.y = yawOfTangent(platePose.tangent);
+      // deconflictPlates retreats a crowded plate towards what it names (D17)
+      plate.userData['anchorWorld'] = platePose.position.clone();
       g.add(plate);
 
       if (!boardAnchor) {

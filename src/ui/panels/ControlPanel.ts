@@ -1,6 +1,13 @@
 /**
  * ControlPanel (ARCHITECTURE.md §3): run/stop/reset, time scale, scan interval, the Notaus
- * button, the camera mode switch — and the "Try it" input toggles of §10.3.
+ * button, the camera mode switch, the start-track chooser — and the "Try it" input toggles
+ * of §10.3.
+ *
+ * The start-track chooser (Bahnhof + Gleis, next to Reset because both put the plant into a
+ * defined starting state) seats the loco in the middle of any station track the trackplan
+ * yields (§10.1). It renders the SEAT THE HOST REPORTS, never its own click: opening a
+ * Gruppe A/B network re-seats the loco too (§7.1 `exerciseStarts`), and a host that refuses
+ * a seat must leave the previous one on screen — D13.
  *
  * Scan interval and time scale are separate on purpose (§6.1): the scan interval is the
  * SIMULATED PLC cycle time (10…200 ms, multiple of the 10 ms physics step), the time scale
@@ -13,7 +20,8 @@
  */
 import { formatAddress } from '../../core';
 import type { BitAddress } from '../../core';
-import type { CameraMode } from '../../scene';
+import type { CameraMode, StartTrackOption, StartTrackRef } from '../../scene';
+import type { SeatedTrack } from '../App';
 import { clear, el, selectField } from '../dom';
 import { t } from '../i18n/i18n';
 import type { MsgKey } from '../i18n/i18n';
@@ -23,23 +31,48 @@ export const SCAN_INTERVALS: readonly number[] = [10, 20, 50, 100, 200];
 /** Time scales (§6.1: 0.25× … 8×; pausing is Stop, not scale 0). */
 export const TIME_SCALES: readonly number[] = [0.25, 0.5, 1, 2, 4, 8];
 
-const CAMERA_MODES: readonly { mode: CameraMode; key: MsgKey }[] = [
-  { mode: 'orbit', key: 'camera.orbit' },
-  { mode: 'bird', key: 'camera.bird' },
-  { mode: 'cab', key: 'camera.cab' },
-  { mode: 'trackside', key: 'camera.trackside' },
-];
+const CAMERA_MODE_KEYS: Readonly<Record<CameraMode, MsgKey>> = {
+  orbit: 'camera.orbit',
+  bird: 'camera.bird',
+  cab: 'camera.cab',
+  trackside: 'camera.trackside',
+};
+
+/** Railway default — the four rigs of §5.4, in the order the panel has always shown them. */
+export const DEFAULT_CAMERA_MODES: readonly CameraMode[] = ['orbit', 'bird', 'cab', 'trackside'];
 
 /**
- * Start-track switch (§7.1 `exerciseStarts`, §10.1): the two Aufgabenstellungen put the loco
- * on different tracks of Bahnhof 1, so the seat is a plant setting the student can change
- * directly instead of only as a side effect of opening a network. The panel never decides
- * which one is active — it renders what `setStartExercise` reports back from the host.
+ * A control on the plant itself — a pedestal button, a switch, a hand valve.
+ *
+ * `momentary` is held: the bit is 1 while the pointer or the key is down and 0 again when it
+ * is released, exactly like the 3D pedestal's `pointerdown`/`pointerup` (pump/scene/picking).
+ * `latching` flips on activation and carries `aria-pressed`.
+ *
+ * `set` states the DESIRED NEW value, never "toggle" — same contract as the 3D pick callbacks,
+ * so a host that drops one call cannot get out of phase. `read` is the state the PLANT
+ * reports: the strip renders that, which is what keeps it and the 3D console showing one
+ * state even though either can be operated.
  */
-const START_EXERCISES: readonly { id: string; key: MsgKey; titleKey: MsgKey }[] = [
-  { id: 'gruppeA', key: 'controls.startGruppeA', titleKey: 'controls.startGruppeATitle' },
-  { id: 'gruppeB', key: 'controls.startGruppeB', titleKey: 'controls.startGruppeBTitle' },
-];
+export type PlantControlKind = 'momentary' | 'latching';
+
+export interface PlantControlSpec {
+  /** Stable identity; also the DOM `data-control` value the tests address. */
+  key: string;
+  kind: PlantControlKind;
+  /** Plant identifier (symbol and/or absolute address). NOT translated — it is the operand
+   *  the student types. `null` for a control that has no operand (the hand valves). */
+  label: string | null;
+  /** Localized name, used when `label` is null. */
+  labelKey: MsgKey | null;
+  set(value: boolean): void;
+  read(): boolean;
+}
+
+export interface PlantControlsSpec {
+  legendKey: MsgKey;
+  noteKey: MsgKey;
+  controls: readonly PlantControlSpec[];
+}
 
 export interface ControlPanelOptions {
   onRun: () => void;
@@ -49,9 +82,12 @@ export interface ControlPanelOptions {
   onTimeScaleChange: (scale: number) => void;
   onNotausChange: (active: boolean) => void;
   onCameraModeChange: (mode: CameraMode) => void;
-  /** Seat the loco on this exercise's start track (§7.1 `exerciseStarts`). Resets the plant,
-   *  so the shell treats it like the Reset button. */
-  onStartExerciseChange: (exerciseId: string) => void;
+  /** Station tracks the chooser offers (`scene/startTracks.ts`), trackplan order. Empty
+   *  disables the chooser — there is nothing to seat on. */
+  startTracks: readonly StartTrackOption[];
+  /** Seat the loco in the middle of this station track (§10.1). Resets the plant, so the
+   *  shell treats it like the Reset button. */
+  onStartTrackChange: (ref: StartTrackRef) => void;
   onLabelsChange: (visible: boolean) => void;
   /** Force (true) or release (false) an input bit; returns whether it was applied (§10.3). */
   onForceInput: (address: BitAddress, value: boolean) => boolean;
@@ -62,6 +98,21 @@ export interface ControlPanelOptions {
   timeScale?: number;
   cameraMode?: CameraMode;
   labelsVisible?: boolean;
+
+  // ── experiment profile (§ Experiments): which controls this plant HAS ─────
+  // Every flag defaults to the railway behaviour, so the delivered panel is unchanged when
+  // no profile is passed — a second experiment subtracts controls, it never rewrites them.
+  /** Latching Notaus button (railway only — the pump plant has no emergency stop). */
+  showNotaus?: boolean;
+  /** Start-track chooser (railway only — the pump has no station tracks to seat on). */
+  showStartTrack?: boolean;
+  /** Camera modes to offer; one entry or none hides the selector entirely. */
+  cameraModes?: readonly CameraMode[];
+  /** Explanatory line under the "Try it" toggles; the railway text names reed contacts. */
+  inputsNoteKey?: MsgKey;
+  /** Keyboard-reachable duplicates of the plant's own controls. `null`/absent = this plant
+   *  has none in the DOM (the railway is driven entirely by the program). */
+  plantControls?: PlantControlsSpec | null;
 }
 
 /** E is a single byte area, so byte·8 + bit identifies an input bit (mirrors app/). */
@@ -83,8 +134,11 @@ export class ControlPanel {
   private readonly speedSelect: HTMLSelectElement;
   private readonly cameraLegend: HTMLElement;
   private readonly cameraButtons = new Map<CameraMode, HTMLButtonElement>();
-  private readonly startLegend: HTMLElement;
-  private readonly startButtons = new Map<string, HTMLButtonElement>();
+  private readonly startField: HTMLElement;
+  private readonly stationLabel: HTMLElement;
+  private readonly stationSelect: HTMLSelectElement;
+  private readonly laneLabel: HTMLElement;
+  private readonly laneSelect: HTMLSelectElement;
   private readonly labelsToggle: HTMLInputElement;
   private readonly labelsText: HTMLElement;
   private readonly layoutLegend: HTMLElement;
@@ -94,15 +148,31 @@ export class ControlPanel {
   private readonly inputsRow: HTMLElement;
   private readonly inputsNote: HTMLElement;
   private readonly inputButtons = new Map<number, HTMLButtonElement>();
+  private readonly plantControls: PlantControlsSpec | null;
+  private readonly plantLegend: HTMLElement;
+  private readonly plantRow: HTMLElement;
+  private readonly plantNote: HTMLElement;
+  private readonly plantButtons = new Map<string, HTMLButtonElement>();
+  /** Momentary controls the pointer or the keyboard is holding down right now. */
+  private readonly heldControls = new Set<string>();
 
   private running = false;
   private notausActive = false;
   private enabled = true;
+  private readonly cameraModes: readonly CameraMode[];
+  private readonly inputsNoteKey: MsgKey;
+  private readonly startTracks: readonly StartTrackOption[];
+  /** The seat the panel currently DISPLAYS. Written only by `setSeatedTrack`, i.e. by the
+   *  host status — never by a click (D13: the display may not disagree with the plant). */
+  private seatedTrack: SeatedTrack | null = null;
   private inputAddresses: readonly BitAddress[] = [];
   private readonly forcedInputs = new Set<number>();
 
   constructor(options: ControlPanelOptions) {
     this.options = options;
+    this.cameraModes = [...(options.cameraModes ?? DEFAULT_CAMERA_MODES)];
+    this.inputsNoteKey = options.inputsNoteKey ?? 'inputs.note';
+    this.startTracks = [...options.startTracks];
 
     this.runButton = el('button', {
       className: 'btn btn-primary',
@@ -140,30 +210,44 @@ export class ControlPanel {
 
     this.cameraLegend = el('span', { className: 'field-label', text: t('controls.camera') });
     const cameraGroup = el('div', { className: 'segmented', attrs: { role: 'group' } });
-    for (const item of CAMERA_MODES) {
+    for (const mode of this.cameraModes) {
       const button = el('button', {
         className: 'seg-btn',
         attrs: { type: 'button' },
-        onClick: () => this.selectCamera(item.mode),
+        onClick: () => this.selectCamera(mode),
       });
-      this.cameraButtons.set(item.mode, button);
+      this.cameraButtons.set(mode, button);
       cameraGroup.appendChild(button);
     }
+    // One rig (or none) is not a choice: the pump has a single orbit camera, so the
+    // selector would be a control the student can only confirm.
+    const showCamera = this.cameraModes.length > 1;
 
-    this.startLegend = el('span', { className: 'field-label', text: t('controls.startTrack') });
-    const startGroup = el('div', {
-      className: 'segmented',
+    // Start-track chooser (§10.1): Bahnhof + Gleis, both plant identifiers (the tokens on the
+    // station boards and in the students' AWL operands), so the option texts are NOT
+    // translated — only the two field labels are.
+    const station = selectField(
+      t('controls.startStation'),
+      this.stationKeys().map((key) => ({ value: key, label: key })),
+      this.stationKeys()[0] ?? '',
+      (value) => this.chooseStation(value),
+    );
+    this.stationLabel = station.label;
+    this.stationSelect = station.select;
+    const lane = selectField(
+      t('controls.startLane'),
+      [],
+      '',
+      (value) => this.chooseLane(value),
+    );
+    this.laneLabel = lane.label;
+    this.laneSelect = lane.select;
+    this.startField = el('div', {
+      className: 'field field-start-track',
       attrs: { role: 'group', 'aria-label': t('controls.startTrack') },
+      children: [station.wrapper, lane.wrapper],
     });
-    for (const item of START_EXERCISES) {
-      const button = el('button', {
-        className: 'seg-btn',
-        attrs: { type: 'button' },
-        onClick: () => this.options.onStartExerciseChange(item.id),
-      });
-      this.startButtons.set(item.id, button);
-      startGroup.appendChild(button);
-    }
+    this.renderLanes(this.stationKeys()[0] ?? '', '');
 
     this.labelsToggle = el('input', { attrs: { type: 'checkbox' } });
     this.labelsToggle.checked = options.labelsVisible ?? true;
@@ -190,7 +274,7 @@ export class ControlPanel {
       className: 'input-toggles',
       attrs: { role: 'group', 'aria-label': t('inputs.title') },
     });
-    this.inputsNote = el('p', { className: 'inputs-note', text: t('inputs.note') });
+    this.inputsNote = el('p', { className: 'inputs-note', text: t(this.inputsNoteKey) });
     this.inputsGroup = el('div', {
       className: 'control-group control-inputs',
       children: [
@@ -200,6 +284,20 @@ export class ControlPanel {
     });
     this.inputsGroup.hidden = true;
 
+    // ── the plant's own controls, as DOM (profile-driven) ────────────────────
+    this.plantControls = options.plantControls ?? null;
+    this.plantLegend = el('span', { className: 'field-label' });
+    this.plantRow = el('div', { className: 'plant-controls', attrs: { role: 'group' } });
+    this.plantNote = el('p', { className: 'plant-note' });
+    const plantGroup = this.plantControls === null ? null : el('div', {
+      className: 'control-group control-plant',
+      children: [
+        el('div', { className: 'field', children: [this.plantLegend, this.plantRow] }),
+        this.plantNote,
+      ],
+    });
+    this.renderPlantControls();
+
     this.element = el('section', {
       className: 'panel panel-controls',
       children: [
@@ -208,21 +306,16 @@ export class ControlPanel {
           children: [this.runButton, this.stopButton, this.resetButton],
         }),
         // Next to Reset on purpose: both put the plant back to a defined starting state.
-        el('div', {
-          className: 'control-group',
-          children: [
-            el('div', {
-              className: 'field',
-              title: t('controls.startTrackTitle'),
-              children: [this.startLegend, startGroup],
-            }),
-          ],
-        }),
+        options.showStartTrack === false
+          ? null
+          : el('div', { className: 'control-group', children: [this.startField] }),
         el('div', { className: 'control-group', children: [scan.wrapper, speed.wrapper] }),
         el('div', {
           className: 'control-group',
           children: [
-            el('div', { className: 'field', children: [this.cameraLegend, cameraGroup] }),
+            showCamera
+              ? el('div', { className: 'field', children: [this.cameraLegend, cameraGroup] })
+              : null,
             el('label', {
               className: 'field field-inline',
               title: t('controls.labelsTitle'),
@@ -234,9 +327,12 @@ export class ControlPanel {
             }),
           ],
         }),
+        plantGroup,
         this.inputsGroup,
         el('span', { className: 'spacer' }),
-        el('div', { className: 'control-group', children: [this.notausButton] }),
+        options.showNotaus === false
+          ? null
+          : el('div', { className: 'control-group', children: [this.notausButton] }),
       ],
     });
 
@@ -269,16 +365,24 @@ export class ControlPanel {
   }
 
   /**
-   * Show which exercise the plant is currently seated for (§7.1 `exerciseStarts`). Driven by
-   * the host status, never by the click: opening a network in the ExercisePanel re-seats the
-   * loco too, and this switch has to follow that just as it follows its own buttons.
+   * Show which station track the plant is seated on. Driven by the HOST STATUS, never by the
+   * click: opening a network in the ExercisePanel re-seats the loco too (§7.1
+   * `exerciseStarts`, D13), and a host that refuses a seat must leave the old one displayed.
+   * `null` (loco on plain line, which no station board names) deselects both selects — a
+   * visibly unnamed seat, not a stale claim about a track the loco is not on.
    */
-  setStartExercise(exerciseId: string): void {
-    for (const [candidate, button] of this.startButtons) {
-      const active = candidate === exerciseId;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  setSeatedTrack(seat: SeatedTrack | null): void {
+    this.seatedTrack = seat;
+    this.startField.title = seat?.exerciseId === undefined
+      ? t('controls.startTrackTitle')
+      : `${t('controls.startTrackTitle')} — ${t('controls.startTrackFromExercise')}`;
+    if (seat === null) {
+      this.stationSelect.selectedIndex = -1;
+      this.laneSelect.selectedIndex = -1;
+      return;
     }
+    this.stationSelect.value = seat.stationKey;
+    this.renderLanes(seat.stationKey, seat.laneKey);
   }
 
   setEnabled(enabled: boolean): void {
@@ -287,8 +391,11 @@ export class ControlPanel {
       control.disabled = !enabled;
     }
     this.scanSelect.disabled = !enabled;
-    for (const button of this.startButtons.values()) button.disabled = !enabled;
+    const seatable = enabled && this.startTracks.length > 0;
+    this.stationSelect.disabled = !seatable;
+    this.laneSelect.disabled = !seatable;
     for (const button of this.inputButtons.values()) button.disabled = !enabled;
+    for (const button of this.plantButtons.values()) button.disabled = !enabled;
   }
 
   /** The forcible input bits of the loaded program (§10.3); an empty list hides the group. */
@@ -302,6 +409,30 @@ export class ControlPanel {
   clearForcedInputs(): void {
     this.forcedInputs.clear();
     for (const address of this.inputAddresses) this.updateInputState(address);
+  }
+
+  /**
+   * Re-read the plant's own controls (§ Experiments): the strip shows what the PLANT reports,
+   * so a switch thrown in the 3D view lights up here too — and a press the coordinator has
+   * not consumed yet does not look consumed. Called from the shell's periodic refresh.
+   */
+  refreshPlantControls(): void {
+    const spec = this.plantControls;
+    if (spec === null) return;
+    for (const control of spec.controls) {
+      const button = this.plantButtons.get(control.key);
+      if (button === undefined) continue;
+      let on = false;
+      try {
+        on = control.read();
+      } catch {
+        on = false;                     // an unavailable plant reads as "nothing energised"
+      }
+      button.classList.toggle('is-active', on);
+      if (control.kind === 'latching') {
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+    }
   }
 
   retranslate(): void {
@@ -319,21 +450,22 @@ export class ControlPanel {
     this.layoutLegend.textContent = t('layout.title');
     this.layoutResetButton.textContent = t('layout.reset');
     this.layoutResetButton.title = t('layout.resetTitle');
-    for (const item of CAMERA_MODES) {
-      const button = this.cameraButtons.get(item.mode);
-      if (button !== undefined) button.textContent = t(item.key);
+    for (const [mode, button] of this.cameraButtons) {
+      button.textContent = t(CAMERA_MODE_KEYS[mode]);
     }
-    this.startLegend.textContent = t('controls.startTrack');
-    for (const item of START_EXERCISES) {
-      const button = this.startButtons.get(item.id);
-      if (button !== undefined) {
-        button.textContent = t(item.key);
-        button.title = t(item.titleKey);
-      }
-    }
+    this.startField.setAttribute('aria-label', t('controls.startTrack'));
+    this.stationLabel.textContent = t('controls.startStation');
+    this.stationSelect.title = t('controls.startStationTitle');
+    this.laneLabel.textContent = t('controls.startLane');
+    this.laneSelect.title = t('controls.startLaneTitle');
+    // re-render the seat only when one is known: retranslate also runs at construction,
+    // before the first host status, and must not deselect the initial default preview
+    if (this.seatedTrack !== null) this.setSeatedTrack(this.seatedTrack);
+    else this.startField.title = t('controls.startTrackTitle');
     this.inputsLegend.textContent = t('inputs.title');
     this.inputsRow.setAttribute('aria-label', t('inputs.title'));
-    this.inputsNote.textContent = t('inputs.note');
+    this.inputsNote.textContent = t(this.inputsNoteKey);
+    this.retranslatePlantControls();
     for (const address of this.inputAddresses) {
       const button = this.inputButtons.get(inputKey(address));
       if (button !== undefined) {
@@ -342,6 +474,158 @@ export class ControlPanel {
     }
     this.updateRunState();
     this.updateNotausState();
+  }
+
+  // ── start-track chooser (§10.1) ────────────────────────────────────────────
+
+  /** Station keys in trackplan order, deduplicated (BH1, BH2, BH3). */
+  private stationKeys(): string[] {
+    const out: string[] = [];
+    for (const option of this.startTracks) {
+      if (!out.includes(option.stationKey)) out.push(option.stationKey);
+    }
+    return out;
+  }
+
+  private lanesOf(stationKey: string): StartTrackOption[] {
+    return this.startTracks.filter((option) => option.stationKey === stationKey);
+  }
+
+  /** Rebuild the Gleis options for a station; `selected` falls back to its first track. */
+  private renderLanes(stationKey: string, selected: string): void {
+    const lanes = this.lanesOf(stationKey);
+    const value = lanes.some((l) => l.laneKey === selected) ? selected : lanes[0]?.laneKey ?? '';
+    clear(this.laneSelect);
+    for (const lane of lanes) {
+      // a dead-end track is offered honestly, but says so: IU parks against the buffer there
+      const text = lane.stub
+        ? `${lane.laneKey} (${t('controls.startLaneDeadEnd')})`
+        : lane.laneKey;
+      const option = el('option', { text, attrs: { value: lane.laneKey } });
+      if (lane.laneKey === value) option.selected = true;
+      this.laneSelect.appendChild(option);
+    }
+    this.laneSelect.value = value;
+  }
+
+  /**
+   * Picking a Bahnhof seats the loco on that station's FIRST track: a station alone is not a
+   * seat, and leaving the plant on the old track while the chooser shows a new station would
+   * be exactly the display-disagrees-with-plant defect this panel exists to avoid.
+   *
+   * The lane list is rebuilt before the host answers — the student must see the station's
+   * tracks immediately — so a host that refuses leaves the wrong lane list standing for up to
+   * one status refresh, until `setSeatedTrack` re-renders the old seat. Pinned in
+   * tests/ui/controlPanel.test.ts ("station pick the host refuses").
+   */
+  private chooseStation(stationKey: string): void {
+    const laneKey = this.lanesOf(stationKey)[0]?.laneKey;
+    if (laneKey === undefined) return;
+    this.renderLanes(stationKey, laneKey);
+    this.options.onStartTrackChange({ stationKey, laneKey });
+  }
+
+  private chooseLane(laneKey: string): void {
+    const stationKey = this.stationSelect.value;
+    if (!this.lanesOf(stationKey).some((l) => l.laneKey === laneKey)) return;
+    this.options.onStartTrackChange({ stationKey, laneKey });
+  }
+
+  // ── the plant's own controls, keyboard-reachable (§ Experiments) ───────────
+
+  /**
+   * One labelled button per plant control. The 3D pedestal is a pick-target-only surface —
+   * no tab stop, no name, nothing a screen reader can announce — so this strip is what makes
+   * the plant operable without a mouse. Both routes call the SAME host callbacks.
+   *
+   * Momentary controls are held rather than clicked (`pointerdown` → 1, `pointerup`/leave →
+   * 0, Space/Enter down → 1, key up → 0), because that is what the manual's self-hold example
+   * teaches: a program that only latches on S1 must visibly drop when the button is released.
+   * The keydown default is suppressed so the browser does not additionally synthesize a
+   * `click` from the same key press.
+   */
+  private renderPlantControls(): void {
+    const spec = this.plantControls;
+    if (spec === null) return;
+    clear(this.plantRow);
+    this.plantButtons.clear();
+    this.heldControls.clear();
+    for (const control of spec.controls) {
+      const button = el('button', {
+        className: `btn btn-input btn-plant btn-plant-${control.kind}`,
+        attrs: { type: 'button', 'data-control': control.key },
+      });
+      if (control.kind === 'latching') {
+        button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('click', () => this.togglePlantControl(control));
+      } else {
+        this.bindMomentary(button, control);
+      }
+      button.disabled = !this.enabled;
+      this.plantButtons.set(control.key, button);
+      this.plantRow.appendChild(button);
+    }
+    this.retranslatePlantControls();
+    this.refreshPlantControls();
+  }
+
+  private bindMomentary(button: HTMLButtonElement, control: PlantControlSpec): void {
+    const press = (): void => {
+      if (!this.enabled || this.heldControls.has(control.key)) return;
+      this.heldControls.add(control.key);
+      control.set(true);
+    };
+    const release = (): void => {
+      if (!this.heldControls.delete(control.key)) return;
+      control.set(false);
+    };
+    button.addEventListener('pointerdown', press);
+    button.addEventListener('pointerup', release);
+    button.addEventListener('pointerleave', release);
+    button.addEventListener('pointercancel', release);
+    // `blur` catches the case the key-up never arrives because focus moved away while held.
+    button.addEventListener('blur', release);
+    button.addEventListener('keydown', (event) => {
+      if (event.key !== ' ' && event.key !== 'Enter') return;
+      event.preventDefault();
+      press();
+    });
+    button.addEventListener('keyup', (event) => {
+      if (event.key !== ' ' && event.key !== 'Enter') return;
+      event.preventDefault();
+      release();
+    });
+  }
+
+  private togglePlantControl(control: PlantControlSpec): void {
+    if (!this.enabled) return;
+    // Ask for the inverse of what the PLANT reports, not of what the button looks like: the
+    // same switch can have been thrown in the 3D view since the last refresh.
+    let current = false;
+    try {
+      current = control.read();
+    } catch {
+      current = false;
+    }
+    control.set(!current);
+    this.refreshPlantControls();
+  }
+
+  private retranslatePlantControls(): void {
+    const spec = this.plantControls;
+    if (spec === null) return;
+    this.plantLegend.textContent = t(spec.legendKey);
+    this.plantNote.textContent = t(spec.noteKey);
+    this.plantRow.setAttribute('aria-label', t(spec.legendKey));
+    for (const control of spec.controls) {
+      const button = this.plantButtons.get(control.key);
+      if (button === undefined) continue;
+      const name = control.label ?? (control.labelKey === null ? control.key : t(control.labelKey));
+      button.textContent = name;
+      button.title = control.kind === 'momentary'
+        ? t('plant.holdTitle', { name })
+        : t('plant.toggleTitle', { name });
+    }
   }
 
   // ── "Try it" input toggles (§10.3) ─────────────────────────────────────────

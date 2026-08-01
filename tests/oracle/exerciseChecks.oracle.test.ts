@@ -6,7 +6,7 @@
  * right, the expectations are right, and yet a correct solution is reported as failing.
  *
  * This file closes that gap. For every network of both groups it replays the local
- * solution (`Claude_work/`, TEST TIME ONLY, skipped when absent) through exactly the
+ * solution (`reference/Claude_work/`, TEST TIME ONLY, skipped when absent) through exactly the
  * pipeline `main.ts#runChecks` uses — fresh Emulator + Plant per network, seed 1,
  * scan 50 ms, the exercise's `bounceEnabled`, the network's own `scenario`, finalized at
  * `runTimeoutMs` — and requires every check to end in `pass`. `pending`/`notExercised`

@@ -3,15 +3,9 @@
  *
  * The regression this pins: a student pasted their real practicum file — the FILLED-IN course
  * template — and got 947 E-LEX-001 errors, because nothing under `src/` knew the file format.
- * The fixtures here are the two unfilled task templates, so the format is under test without
- * any solution content in the repository. The synthetic filled template below uses neutral
- * operands only (student Merker + one input symbol), never task content.
- *
- * **The templates are course-authored material and are NOT published** (`.gitignore`): the
- * public repository carries code only. Every block that needs them is therefore guarded by
- * `TEMPLATES_PRESENT` and skips visibly in a code-only clone, rather than throwing ENOENT.
- * On the authoring machine, where both files exist, the suite runs at full strength — so this
- * guard can never silently hollow the coverage out here.
+ * The fixtures here are the two COMMITTED, unfilled task templates, so the format is under
+ * test without any solution content in the repository. The synthetic filled template below
+ * uses neutral operands only (student Merker + one input symbol), never task content.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -22,14 +16,18 @@ import {
 } from '../../src/core';
 import { makeSymbols } from './fixtures';
 
+/** The course templates from the local-only `reference/` folder, read as latin1 — they are
+ *  cp1252 with German umlauts. Absent in a public checkout: suites using them run only
+ *  where the files exist (`TEMPLATES_PRESENT`); the synthetic fixtures cover the format
+ *  everywhere. */
 function templatePath(which: 'A' | 'B'): string {
-  return fileURLToPath(new URL(`../../Gruppe_${which}_Aufgabe_SS2026.txt`, import.meta.url));
+  return fileURLToPath(
+    new URL(`../../reference/Gruppe_${which}_Aufgabe_SS2026.txt`, import.meta.url),
+  );
 }
 
-/** Both course templates present? False in a code-only clone — the guarded blocks then skip. */
-const TEMPLATES_PRESENT = (['A', 'B'] as const).every((which) => existsSync(templatePath(which)));
+const TEMPLATES_PRESENT = existsSync(templatePath('A')) && existsSync(templatePath('B'));
 
-/** The course templates, read as latin1 — they are cp1252 with German umlauts. */
 function taskTemplate(which: 'A' | 'B'): string {
   return readFileSync(templatePath(which), 'latin1');
 }
@@ -75,7 +73,7 @@ function errorsOf(diagnostics: readonly Diagnostic[]): Diagnostic[] {
 // ───────────────────────────────── detection ────────────────────────────────
 
 describe('detectTemplate', () => {
-  it.skipIf(!TEMPLATES_PRESENT)('recognizes both course templates', () => {
+  it.runIf(TEMPLATES_PRESENT)('recognizes both local course templates', () => {
     expect(detectTemplate(taskTemplate('A'))).toBe(true);
     expect(detectTemplate(taskTemplate('B'))).toBe(true);
   });
@@ -106,7 +104,7 @@ describe('detectTemplate', () => {
 
 // ────────────────────── extraction: committed task templates ────────────────
 
-describe.skipIf(!TEMPLATES_PRESENT)('extraction from the course task templates', () => {
+describe.runIf(TEMPLATES_PRESENT)('extraction from the local task templates', () => {
   it('is the regression: the RAW template floods the lexer with errors', () => {
     // The bug report, reproduced — the tokenizer is right, the ingest step was missing.
     for (const which of ['A', 'B'] as const) {
@@ -159,7 +157,7 @@ describe.skipIf(!TEMPLATES_PRESENT)('extraction from the course task templates',
  * mode instead yields zero errors and one `W-TPL-001` per misplaced line — the line the student
  * has to move. `mode` covers the three ways the marker stops being found.
  */
-describe.skipIf(!TEMPLATES_PRESENT)('course template with its program markers gone', () => {
+describe.runIf(TEMPLATES_PRESENT)('local template with its program markers gone', () => {
   const STUDENT_AWL = ['      U    "NotausBit"', '      =    M 10.0'];
 
   /** Rewrite every marker line: replace it, keep it but put the AWL above, or misspell it. */
@@ -320,8 +318,6 @@ describe('extraction from a filled template', () => {
   });
 
   it('is idempotent', () => {
-    // The synthetic FILLED template always runs; the two course templates join it only on a
-    // machine that has them, so this test keeps working (weaker, not skipped) in a clone.
     const sources = TEMPLATES_PRESENT
       ? [FILLED, taskTemplate('A'), taskTemplate('B')]
       : [FILLED];

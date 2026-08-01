@@ -6,7 +6,7 @@ the extracted geometry has to be committed for `tools/smooth-trackplan.ts` and t
 tests to be reproducible without it. Re-run this script only when the PDF changes.
 
 What is extracted: every stroked path on **page 3** whose width is 4.56 pt. That width is
-the grey track network (see docs/research/gleisplan.md); page 3 is used because pages 1/2
+the grey track network (see reference/research/gleisplan.md); page 3 is used because pages 1/2
 overpaint part of the network with the red Aufgabe route, while pages 3 and 4 carry the
 complete grey network — and their path lists are byte-identical, which this script asserts.
 
@@ -15,9 +15,9 @@ Output: 74 paths, each either
     {"kind": "curve", "beziers": [[[x, y] x 4], ...]}                 — chained cubics
 in Gleisplan points (origin top left, y downward), rounded to 3 decimals.
 
-Run (repo root), with a Python that has PyMuPDF installed:
+Run (repo root):
 
-    python tools/extract-gleisplan-paths.py
+    C:/Users/pmqua/.venvs/notebooklm/Scripts/python.exe tools/extract-gleisplan-paths.py
 """
 import json
 import math

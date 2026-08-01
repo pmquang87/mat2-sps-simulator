@@ -1,5 +1,5 @@
 /**
- * §9.4 Gruppe A oracle: run the local solution (Claude_work/gruppeA.txt, gitignored,
+ * §9.4 Gruppe A oracle: run the local solution (reference/Claude_work/gruppeA.txt, gitignored,
  * TEST TIME ONLY) through the full sim and assert the task-derived event table
  * (expectations/gruppeA.json). Skips cleanly when the solution file is absent.
  *

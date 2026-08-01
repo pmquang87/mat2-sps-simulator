@@ -10,17 +10,26 @@
  * while paused (timeScale 0 yields zero steps) so the scene stays interactive.
  */
 import type { SimClock } from './SimClock';
-import type { SimCoordinator } from './SimCoordinator';
+
+/**
+ * All the driver needs of a coordinator. Typed as a structural interface rather than as
+ * `SimCoordinator` so the second experiment's own loop (`pump/PumpCoordinator`) can reuse
+ * this driver unchanged — the railway coordinator satisfies it as-is, so nothing about the
+ * delivered behaviour moves.
+ */
+export interface SteppableCoordinator {
+  advanceSteps(n: number): void;
+}
 
 export class RafDriver {
   private readonly clock: SimClock;
-  private readonly coordinator: SimCoordinator;
+  private readonly coordinator: SteppableCoordinator;
   private readonly onFrame: (alphaMs: number) => void;
 
   private handle: number | null = null;
   private lastTimestamp: number | null = null;
 
-  constructor(clock: SimClock, coordinator: SimCoordinator,
+  constructor(clock: SimClock, coordinator: SteppableCoordinator,
               onFrame: (alphaMs: number) => void) {
     this.clock = clock;
     this.coordinator = coordinator;

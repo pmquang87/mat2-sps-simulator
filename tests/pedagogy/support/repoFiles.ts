@@ -129,15 +129,11 @@ export function gitCommittableFiles(dir: string): string[] | null {
 }
 
 /**
- * Fallback when git is unavailable: the doc paths `.gitignore` excludes because they carry
- * solution-derived content (ARCHITECTURE.md §9.4). `solutionLeakGuard.test.ts` asserts that
- * git really ignores these, so the list cannot drift unnoticed.
+ * The one local-only folder: course material, the research corpus and the solution oracles
+ * all live under it, and `.gitignore` excludes it wholesale (ARCHITECTURE.md §9.4). The
+ * leak-guard suite asserts git really ignores it, so the boundary cannot drift unnoticed.
  */
-export const GITIGNORED_DOC_PATHS: readonly string[] = [
-  'docs/research/solutions.md',
-  'docs/research/weichen_video.md',
-  'docs/DOMAIN_MODEL.md',
-];
+export const LOCAL_ONLY_DIR = 'reference';
 
 /** Committed text files under `dir`, git-authoritative with a .gitignore-derived fallback. */
 export function committedTextFiles(dir: string): string[] {
@@ -147,7 +143,7 @@ export function committedTextFiles(dir: string): string[] {
   }
   return walkFiles(path.join(repoRoot(), dir))
     .map((file) => relativeToRepo(file))
-    .filter((file) => isTextFile(file) && !GITIGNORED_DOC_PATHS.includes(file));
+    .filter((file) => isTextFile(file) && !file.startsWith(`${LOCAL_ONLY_DIR}/`));
 }
 
 /** Parse a JSON file if it exists, else null (data files may not be authored yet). */

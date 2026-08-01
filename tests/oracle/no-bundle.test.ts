@@ -1,5 +1,5 @@
 /**
- * Solution-leak guard (ARCHITECTURE.md §9.4). Always runs — it never needs `Claude_work/`.
+ * Solution-leak guard (ARCHITECTURE.md §9.4). Always runs — it never needs `reference/Claude_work/`.
  *
  * It asserts three things:
  *  1. nothing under `src/` references the oracle directory;
@@ -22,7 +22,7 @@
  * guard can never pass vacuously. Calibration against the real (gitignored) solution-derived
  * documents on the authoring machine: each of them trips at least one marker plus the AWL
  * density rule (9 … 205 plant-operand AWL lines), while the committed documents peak at 2 such
- * lines — a transcription of the lecture video in `docs/research/video_design.md`.
+ * lines — a transcription of the lecture video in `reference/research/video_design.md`.
  *
  * Placement note: authored by the pedagogy agent (owner of the §10.2 leak rules) as
  * tests/pedagogy/solutionLeakGuard.test.ts; relocated by the integrator to the §3
@@ -32,7 +32,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  GITIGNORED_DOC_PATHS,
+  LOCAL_ONLY_DIR,
   committedTextFiles,
   envFlag,
   fileExists,
@@ -47,9 +47,6 @@ import {
 
 /** Assembled at runtime so this file is not itself a hit for a naive grep of the repo. */
 const ORACLE_DIR_TOKEN = ['Claude', 'work'].join('_');
-
-/** Committed text files under docs/ — empty in a code-only clone, which skips that check. */
-const COMMITTED_DOCS = committedTextFiles('docs');
 
 interface Marker {
   id: string;
@@ -171,13 +168,8 @@ describe('solution-leak guard (§9.4)', () => {
     expect(format(findings)).toEqual([]);
   });
 
-  // A code-only clone publishes no documents at all (`.gitignore`: `docs/`), so there is
-  // nothing under docs/ to scan. That must SKIP visibly rather than pass with an empty file
-  // list — an empty scan reporting "no leaks" is exactly the vacuous green this suite exists
-  // to prevent. On the authoring machine docs/ is present and tracked, so the assertion below
-  // still runs at full strength; `.gitignore` does not untrack what git already tracks.
-  it.skipIf(COMMITTED_DOCS.length === 0)('committed docs/ carry no solution content', () => {
-    const files = COMMITTED_DOCS;
+  it('committed docs/ carry no solution content', () => {
+    const files = committedTextFiles('docs');
     expect(files.length).toBeGreaterThan(0);
     const findings: Finding[] = [];
     for (const rel of files) {
@@ -188,13 +180,15 @@ describe('solution-leak guard (§9.4)', () => {
     expect(format(findings)).toEqual([]);
   });
 
-  it('keeps the solution-derived documents and the oracle directory out of the repository', () => {
+  it('keeps the local-only reference/ folder entirely out of the repository', () => {
+    // Structural publish boundary: EVERYTHING local-only (course material, research corpus,
+    // solution oracles, internal handoff) lives under reference/, and git must consider
+    // none of it committable — the tracked tree IS the publishable tree.
+    const inReference = gitCommittableFiles(LOCAL_ONLY_DIR);
+    if (inReference === null) return;                 // git unavailable — nothing to assert
+    expect(inReference).toEqual([]);
     const trackedDocs = gitCommittableFiles('docs');
-    if (trackedDocs === null) return;                 // git unavailable — nothing to assert
-    for (const ignored of GITIGNORED_DOC_PATHS) {
-      expect(trackedDocs).not.toContain(ignored);
-    }
-    expect(gitCommittableFiles(ORACLE_DIR_TOKEN)).toEqual([]);
+    expect(trackedDocs ?? []).not.toContain('reference/HANDOFF.md');
   });
 
   it('the built dist/ is free of solution content', () => {

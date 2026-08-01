@@ -24,16 +24,15 @@ import {
 } from '../../src/ui/templateNotice';
 import { FIXTURE_VARIABLES } from '../core/fixtures';
 
+// The course templates live in the local-only reference/ folder (gitignored); the suites
+// that ingest them run only where the files exist — a public checkout keeps the rest.
 function templatePath(which: 'A' | 'B'): string {
-  return fileURLToPath(new URL(`../../Gruppe_${which}_Aufgabe_SS2026.txt`, import.meta.url));
+  return fileURLToPath(
+    new URL(`../../reference/Gruppe_${which}_Aufgabe_SS2026.txt`, import.meta.url),
+  );
 }
 
-/**
- * The course templates are not published (the public repository carries code only), so the
- * three tests that ingest a REAL template skip in a clone. The rest of this file drives the
- * same pipeline with synthetic sources and keeps running, so the ingest wiring stays covered.
- */
-const TEMPLATES_PRESENT = (['A', 'B'] as const).every((which) => existsSync(templatePath(which)));
+const TEMPLATES_PRESENT = existsSync(templatePath('A')) && existsSync(templatePath('B'));
 
 function taskTemplate(which: 'A' | 'B'): string {
   return readFileSync(templatePath(which), 'latin1');
@@ -58,19 +57,19 @@ function loadIntoPlc(source: string): {
   };
 }
 
-describe('Load into PLC — course template ingest', () => {
+describe.runIf(TEMPLATES_PRESENT)('Load into PLC — course template ingest', () => {
   beforeEach(() => {
     setLocale('en');
   });
 
-  it.skipIf(!TEMPLATES_PRESENT).each(['A', 'B'] as const)('accepts the unfilled Gruppe %s template without errors', (w) => {
+  it.each(['A', 'B'] as const)('accepts the unfilled Gruppe %s template without errors', (w) => {
     const outcome = loadIntoPlc(taskTemplate(w));
     expect(outcome.diagnostics).toEqual([]);
     expect(outcome.ok).toBe(true);
     expect(outcome.instructionCount).toBe(0);
   });
 
-  it.skipIf(!TEMPLATES_PRESENT)('reports ONE informational message naming networks, instructions and ignored prose', () => {
+  it('reports ONE informational message naming networks, instructions and ignored prose', () => {
     const outcome = loadIntoPlc(taskTemplate('A'));
     const info = outcome.notices.filter((d) => d.severity === 'info');
     expect(info).toHaveLength(1);
@@ -288,7 +287,7 @@ describe('template notices are fully localized (§5.6)', () => {
     }
   });
 
-  it.skipIf(!TEMPLATES_PRESENT)('does not depend on the locale active when it was built', () => {
+  it.runIf(TEMPLATES_PRESENT)('does not depend on the locale active when it was built', () => {
     setLocale('de');
     const german = loadIntoPlc(taskTemplate('B')).notices;
     setLocale('en');

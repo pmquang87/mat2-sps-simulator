@@ -2,7 +2,7 @@
  * Shared materials, palette and physical dimensions of the scene
  * (ARCHITECTURE.md §3 `scene/materials.ts`).
  *
- * Look reference: `docs/research/video_design.md` §1/§2/§4 and the frame PNGs
+ * Look reference: `reference/research/video_design.md` §1/§2/§4 and the frame PNGs
  * (`einfach_01.png`, `doppel_01.png`, `reedkontakt_scaled.png`) — model-railway TT (1:120)
  * look: static scatter grass (not photo-lawn), rough plaster rocks, light-grey ballast,
  * dark-red/bordeaux diesel loco with a silver roof, red/white coaches, bulky grey switch

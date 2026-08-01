@@ -10,7 +10,7 @@
  * relaxed from an exact multiset to a subset check, or `assertAllPulseDurations` were made
  * to tolerate an empty pulse list, the corresponding case below turns red.
  *
- * Runs unconditionally: it needs no `Claude_work/` solution, only synthetic event logs.
+ * Runs unconditionally: it needs no `reference/Claude_work/` solution, only synthetic event logs.
  */
 import { describe, expect, it } from 'vitest';
 import type { SimEvent } from '../../src/plant';
